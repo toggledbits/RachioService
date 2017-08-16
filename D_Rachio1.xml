@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!--
+     This file is part of the Rachio Plugin for Vera
+     Copyright 2017 Patrick H. Rigney, All Rights Reserved
+     $Id: D_Rachio1.xml 65 2017-08-16 21:52:39Z patrick $
+-->
+<root xmlns="urn:schemas-upnp-org:device-1-0">
+  <specVersion>
+    <major>1</major>
+    <minor>0</minor>
+  </specVersion>
+  <device>
+    <deviceType>urn:schemas-toggledbits-com:device:Rachio:1</deviceType>
+    <friendlyName>Rachio Service</friendlyName>
+    <manufacturer>rigpapa</manufacturer>
+    <manufacturerURL>http://www.toggledbits.com/rachio/</manufacturerURL>
+    <modelDescription>Rachio Service</modelDescription>
+    <modelName>Rachio Service</modelName>
+    <handleChildren>1</handleChildren>
+    <staticJson>D_Rachio1.json</staticJson>
+    <Category_Num>1</Category_Num>
+    <serviceList>
+      <service>
+        <serviceType>urn:schemas-toggledbits-com:service:Rachio:1</serviceType>
+        <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+        <SCPDURL>S_Rachio1.xml</SCPDURL>
+      </service>
+    </serviceList>
+    <implementationList>
+      <implementationFile>I_Rachio1.xml</implementationFile>
+    </implementationList>
+  </device>
+</root>

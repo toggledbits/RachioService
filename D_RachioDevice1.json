@@ -1,0 +1,331 @@
+{
+    "_comment": [
+        "This file is part of the Rachio Plugin for Vera",
+        "Copyright 2017 Patrick H. Rigney, All Rights Reserved",
+        "$Id: D_RachioDevice1.json 65 2017-08-16 21:52:39Z patrick $"
+    ],
+    "default_icon": "http://www.toggledbits.com/rachio/assets/rachio-device-ok-60x60.png",
+    "state_icons": [{
+            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-attn-60x60.png",
+            "conditions": [{
+                "service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                "variable": "Status",
+                "operator": "!=",
+                "value": "ONLINE",
+                "subcategory_num": 0
+            }]
+        },
+        {
+            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-disabled-60x60.png",
+            "conditions": [{
+                "service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                "variable": "On",
+                "operator": "==",
+                "value": 0,
+                "subcategory_num": 0
+            }]
+        },
+        {
+            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-paused-60x60.png",
+            "conditions": [{
+                "service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                "variable": "Paused",
+                "operator": "!=",
+                "value": 0,
+                "subcategory_num": 0
+            }]
+        },
+        {
+            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-watering-60x60.png",
+            "conditions": [{
+                "service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                "variable": "Watering",
+                "operator": "==",
+                "value": 1,
+                "subcategory_num": 0
+            }]
+        }
+    ],
+    "x": "2",
+    "y": "4",
+    "inScene": "1",
+    "Tabs": [{
+            "Label": {
+                "lang_tag": "tabname_control",
+                "text": "Control"
+            },
+            "Position": "0",
+            "TabType": "flash",
+            "TopNavigationTab": 1,
+            "AfterInit": {
+                "ScriptName": "J_RachioDevice1.js",
+                "Function": "RachioDevice1.zonewatering"
+            },
+            "ControlGroup": [{
+                "id": "1",
+                "isSingle": "1",
+                "scenegroup": "1"
+            }],
+            "SceneGroup": [{
+                "id": "1",
+                "top": "0",
+                "left": "0",
+                "x": "4",
+                "y": "1"
+            }],
+            "Control": [{
+                    "ControlGroup": "1",
+                    "ControlType": "button",
+                    "top": "0",
+                    "left": "0",
+                    "Label": {
+                        "lang_tag": "tb_rachiodeviceon",
+                        "text": "On"
+                    },
+                    "Display": {
+                        "Top": "8",
+                        "Left": "0",
+                        "Width": "72",
+                        "Height": "24",
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Variable": "On",
+                        "Value": "1"
+                    },
+                    "Command": {
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Action": "DeviceOn",
+                        "Parameters": []
+                    },
+                    "ControlCode": "rachiodevice_on"
+                },
+                {
+                    "ControlGroup": "1",
+                    "ControlType": "button",
+                    "top": "0",
+                    "left": "0",
+                    "Label": {
+                        "lang_tag": "tb_rachiodeviceoff",
+                        "text": "Off"
+                    },
+                    "Display": {
+                        "Top": "8",
+                        "Left": "80",
+                        "Width": "72",
+                        "Height": "24",
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Variable": "On",
+                        "Value": "0"
+                    },
+                    "Command": {
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Action": "DeviceOff",
+                        "Parameters": []
+                    },
+                    "ControlCode": "rachiodevice_off"
+                },
+                {
+                    "ControlGroup": "1",
+                    "ControlType": "button",
+                    "HorizontalMultiplier": "2",
+                    "top": "0",
+                    "left": "0",
+                    "Label": {
+                        "lang_tag": "tb_rachiostopbutton",
+                        "text": "Stop Watering"
+                    },
+                    "Display": {
+                        "Top": "8",
+                        "Left": "160",
+                        "Width": "144",
+                        "Height": "24"
+                    },
+                    "Command": {
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Action": "DeviceStop",
+                        "Parameters": []
+                    },
+                    "ControlCode": "rachiodevice_stop"
+                },
+                {
+                    "ControlGroup": "1",
+                    "ControlType": "line_break",
+                    "top": "0",
+                    "left": "0",
+                    "ControlCode": "rachiodevice_break1"
+                },
+                {
+                    "ControlGroup": "1",
+                    "ControlType": "variable",
+                    "top": "0",
+                    "left": "0",
+                    "Label": {
+                        "lang_tag": "tb_rachiodevmsg",
+                        "text": ""
+                    },
+                    "Display": {
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Variable": "Message",
+                        "Top": 56,
+                        "Left": 5,
+                        "Width": 300,
+                        "Height": 24
+                    }
+                },
+                {
+                    "ControlType": "label",
+                    "top": "0",
+                    "left": "0",
+                    "Label": {
+                        "lang_tag": "tb_rachiomodel",
+                        "text": "Model:"
+                    },
+                    "Display": {
+                        "Top": 78,
+                        "Left": 5,
+                        "Width": 60,
+                        "Height": 24
+                    }
+                },
+                {
+                    "ControlType": "variable",
+                    "top": "0",
+                    "left": "0",
+                    "Display": {
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Variable": "Model",
+                        "Top": 78,
+                        "Left": 72,
+                        "Width": 320,
+                        "Height": 24
+                    }
+                },
+                {
+                    "ControlType": "label",
+                    "top": "0",
+                    "left": "0",
+                    "Label": {
+                        "lang_tag": "tb_rachioserial",
+                        "text": "Serial:"
+                    },
+                    "Display": {
+                        "Top": 102,
+                        "Left": 5,
+                        "Width": 60,
+                        "Height": 24
+                    }
+                },
+                {
+                    "ControlType": "variable",
+                    "top": "0",
+                    "left": "0",
+                    "Display": {
+                        "Service": "urn:toggledbits-com:serviceId:RachioDevice1",
+                        "Variable": "Serial",
+                        "Top": 102,
+                        "Left": 72,
+                        "Width": 320,
+                        "Height": 24
+                    }
+                }
+            ]
+        },
+        {
+            "Label": {
+                "lang_tag": "advanced",
+                "text": "Advanced"
+            },
+            "Position": "1",
+            "TabType": "javascript",
+            "ScriptName": "shared.js",
+            "Function": "advanced_device"
+        },
+        {
+            "Label": {
+                "lang_tag": "logs",
+                "text": "Logs"
+            },
+            "Position": "2",
+            "TabType": "javascript",
+            "ScriptName": "shared.js",
+            "Function": "device_logs"
+        },
+        {
+            "Label": {
+                "lang_tag": "notifications",
+                "text": "Notifications"
+            },
+            "Position": "3",
+            "TabType": "javascript",
+            "ScriptName": "shared.js",
+            "Function": "device_notifications"
+        },
+        {
+            "Label": {
+                "lang_tag": "device_scenes",
+                "text": "Scenes"
+            },
+            "Position": "4",
+            "TabType": "javascript",
+            "ScriptName": "shared.js",
+            "Function": "device_scenes"
+        }
+    ],
+    "eventList2": [{
+            "id": 1,
+            "label": {
+                "lang_tag": "tb_ev_rachiodevice_is_enabled",
+                "text": "Whenever _DEVICE_NAME_ is enabled"
+            },
+            "serviceId": "urn:toggledbits-com:serviceId:RachioDevice1",
+            "serviceStateTable": {
+                "On": {
+                    "value": "1",
+                    "comparisson": "="
+                }
+            }
+        },
+        {
+            "id": 2,
+            "label": {
+                "lang_tag": "tb_ev_rachiodevice_is_disabled",
+                "text": "Whenever _DEVICE_NAME_ is disabled"
+            },
+            "serviceId": "urn:toggledbits-com:serviceId:RachioDevice1",
+            "serviceStateTable": {
+                "On": {
+                    "value": "0",
+                    "comparisson": "="
+                }
+            }
+        },
+        {
+            "id": 3,
+            "label": {
+                "lang_tag": "tb_ev_rachiodevice_stopwater",
+                "text": "Whenever _DEVICE_NAME_ stops watering"
+            },
+            "serviceId": "urn:toggledbits-com:serviceId:RachioDevice1",
+            "serviceStateTable": {
+                "Watering": {
+                    "value": "0",
+                    "comparisson": "="
+                }
+            }
+        },
+        {
+            "id": 4,
+            "label": {
+                "lang_tag": "tb_ev_rachiodevice_startwater",
+                "text": "Whenever _DEVICE_NAME_ starts watering"
+            },
+            "serviceId": "urn:toggledbits-com:serviceId:RachioDevice1",
+            "serviceStateTable": {
+                "Watering": {
+                    "value": "1",
+                    "comparisson": "="
+                }
+            }
+        }
+    ],
+    "device_type": "urn:schemas-toggledbits-com:device:RachioDevice:1"
+}

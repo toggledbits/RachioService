@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!--
+     This file is part of the Rachio Plugin for Vera
+     Copyright 2017 Patrick H. Rigney, All Rights Reserved
+     $Id: S_RachioZone1.xml 65 2017-08-16 21:52:39Z patrick $
+-->
+<scpd xmlns="urn:schemas-upn-org:service-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <serviceStateTable>
+        <stateVariable sendEvents="yes">
+            <name>Enabled</name>
+            <dataType>boolean</dataType>
+            <defaultValue></defaultValue>
+            <shortCode>enabled</shortCode>
+        </stateVariable>
+        <stateVariable sendEvents="yes">
+            <name>Watering</name>
+            <dataType>boolean</dataType>
+            <defaultValue></defaultValue>
+            <shortCode>watering</shortCode>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>Remaining</name>
+            <dataType>ui4</dataType>
+            <defaultValue>0</defaultValue>
+            <shortCode>remaining</shortCode>
+        </stateVariable>
+    </serviceStateTable>
+    <actionList>
+        <action>
+            <name>StartZone</name>
+            <argumentList>
+                <argument>
+                    <name>durationMinutes</name>
+                    <direction>in</direction>
+                </argument>
+            </argumentList>
+        </action>
+    </actionList>
+</scpd>

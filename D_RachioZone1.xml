@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+     This file is part of the Rachio Plugin for Vera
+     Copyright 2017 Patrick H. Rigney, All Rights Reserved
+     $Id: D_RachioZone1.xml 65 2017-08-16 21:52:39Z patrick $
+-->
+<root
+    xmlns="urn:schemas-upnp-org:device-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <device>
+        <deviceType>urn:schemas-toggledbits-com:device:RachioZone:1</deviceType>
+        <friendlyName>Rachio Zone</friendlyName>
+        <handleChildren>0</handleChildren>
+        <staticJson>D_RachioZone1.json</staticJson>
+        <serviceList>
+            <service>
+                <serviceType>urn:schemas-toggledbits-com:service:RachioZone:1</serviceType>
+                <serviceId>urn:toggledbits-com:serviceId:RachioZone1</serviceId>
+                <SCPDURL>S_RachioZone1.xml</SCPDURL>
+            </service>
+            <service>
+                <serviceType>urn:schemas-micasaverde-com:service:HaDevice:1</serviceType>
+                <serviceId>urn:micasaverde-com:serviceId:HaDevice1</serviceId>
+                <SCPDURL>S_HaDevice1.xml</SCPDURL>
+            </service>
+        </serviceList>
+    </device>
+</root>
