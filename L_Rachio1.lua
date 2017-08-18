@@ -75,7 +75,7 @@ local rateTab = nil     -- to track API rate limiting
 local rateDiv = 5       -- granularity (seconds)
 local rateMax = 15      -- max per-minute rate allowed
 
-local hardfail
+local hardFail
 
 local function formatMinutes( m )
     local h
@@ -396,7 +396,7 @@ end
 --     an attempt to start or stop the watering schedule? We may not care, as
 --     whatever error befalls the API call will crop up on a subsequent update
 --     cycle if its not transient. But should be elegant, dontcha think?
-hardfail = function (status, msg) -- forward declared
+hardFail = function (status, msg) -- forward declared
     L("called hardFail(%1,%2)", status, msg)
 
     -- Set ServiceCheck variable and update status message

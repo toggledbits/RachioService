@@ -1,9 +1,4 @@
 <?xml version="1.0"?>
-<!--
-     This file is part of the Rachio Plugin for Vera
-     Copyright 2017 Patrick H. Rigney, All Rights Reserved
-     $Id: D_Rachio1.xml 65 2017-08-16 21:52:39Z patrick $
--->
 <root xmlns="urn:schemas-upnp-org:device-1-0">
   <specVersion>
     <major>1</major>
