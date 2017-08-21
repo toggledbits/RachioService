@@ -55,7 +55,6 @@ local DEFAULT_INTERVAL = 60     -- Default interval between API polls; can be ov
 local MAX_CYCLEMULT = 128       -- Max multiplier for poll interval (doubles on each error up to this number)
 
 local debugMode = false
-local traceMode = false
 
 local runStamp = 0
 local tickCount = 0
@@ -82,53 +81,6 @@ local function formatMinutes( m )
     h = math.floor( m / 60)
     m = m - 60 * h
     return string.format("%02d:%02d", h, m)
-end
-
-local function trace( typ, msg )
-    local dkjson = require("dkjson")
-    local http = require("socket.http")
-    local ltn12 = require("ltn12")
-
-    local ts = os.time()
-    local r
-    local t = {
-        ["type"]=typ,
-        plugin=_NAME or "unknown",
-        pluginVersion=_CONFIGVERSION,
-        serial=luup.pk_accesspoint,
-        systime=ts,
-        sysver=luup.version,
-        longitude=luup.longitude,
-        latitude=luup.latitude,
-        timezone=luup.timezone,
-        city=luup.city,
-        isALTUI=isALTUI,
-        isOpenLuup=isOpenLuup,
-        message=msg
-    }
-
-    local tHeaders = {}
-    local body = dkjson.encode(t)
-    tHeaders["Content-Type"] = "application/json"
-    tHeaders["Content-Length"] = string.len(body)
-
-    -- Make the request.
-    local respBody, httpStatus, httpHeaders
-    http.TIMEOUT = 10
-    respBody, httpStatus, httpHeaders = http.request{
-        url = "http://www.toggledbits.com/luuptrace/",
-        source = ltn12.source.string(body),
-        sink = ltn12.sink.table(r),
-        method = "POST",
-        headers = tHeaders,
-        redirect = false
-    }
-    if httpStatus == 401 or httpStatus == 404 then
-        traceMode = false
-    end
-    if httpStatus == 404 then
-        luup.variable_set(SID, "TraceMode", 0, myDevice)
-    end
 end
 
 local function dump(t)
@@ -173,10 +125,6 @@ local function L(msg, ...)
         end
     )
     luup.log(str)
-    if traceMode then
-        local status, err
-        status,err = pcall( trace, "log", str )
-    end
 end
 
 local function D(msg, ...)
@@ -1371,6 +1319,6 @@ end
 
 function setTraceMode( devnum, newState )
     if newState == nil then newState = true end
-    traceMode = newState
+    -- Sets debug only; no trace in production/released code.
     debugMode = newState
 end
