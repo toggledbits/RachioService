@@ -89,8 +89,6 @@ var RachioDevice1 = (function (api) {
             html += "</div>"; /* iro-zone-controls */
             html += "</div>"; /* iro-custom */
 			
-			html += '<div style="margin-top: 16px;">Like the Rachio Irrigation Control plug-in? Please consider supporting the project with <a href="https://www.makersupport.com/toggledbits">a one-time &ldquo;tip&rdquo;, or monthly donation of just $1</a>. I am grateful for any support you choose to give.</div>';
-			
             // Push generated HTML to page
             api.setCpanelContent(html);
 
