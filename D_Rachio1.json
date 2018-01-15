@@ -427,7 +427,7 @@
                         "Top": 292,
                         "Left": 5,
                         "Width": 320,
-                        "Height": 24
+                        "Height": 96
                     }
                 },
                 {
@@ -439,8 +439,8 @@
                         "text": "<b>Find the Rachio plug-in useful?</b> Please consider supporting the project with <a href=\"https://www.makersupport.com/toggledbits\">a one-time &ldquo;tip&rdquo;, or a monthly $1 donation</a>. I am grateful for any support you choose to give!"
                     },
                     "Display": {
-                        "Top": 340,
-                        "Left": 0,
+                        "Top": 384,
+                        "Left": 5,
                         "Width": 320,
                         "Height": 96
                     }
