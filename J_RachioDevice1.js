@@ -5,7 +5,7 @@
  *
  * Copyright 2016,2017 Patrick H. Rigney, All Rights Reserved.
  * This file is part of the Rachio Plugin for Vera. For license information, see LICENSE at https://github.com/toggledbits/rachio/
- * $Id: J_RachioDevice1.js 65 2017-08-16 21:52:39Z patrick $
+ * $Id$
  */
  
 // "use strict"; // fails under UI7, fine on ALTUI

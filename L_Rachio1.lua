@@ -5,7 +5,7 @@
 -- Copyright 2017 Patrick H. Rigney, All Rights Reserved
 -- For information, see http://www.toggledbits.com/rachio/
 --
--- $Id: L_Rachio1.lua 66 2017-08-16 21:56:00Z patrick $
+-- $Id$
 --
 -- -----------------------------------------------------------------------------
 --
