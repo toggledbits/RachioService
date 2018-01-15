@@ -1066,9 +1066,9 @@ local function checkFirmware(dev)
     end
 
     -- We're good.
-    local check = luup.variable_get(MYSID, "UI7Check", dev)
+    local check = luup.variable_get(SYSSID, "UI7Check", dev)
     if check ~= "true" then
-        luup.variable_set(MYSID, "UI7Check", "true", dev)
+        luup.variable_set(SYSSID, "UI7Check", "true", dev)
     end
     return true
 end
@@ -1089,9 +1089,11 @@ local function runOnce(pdev)
         luup.variable_set(SYSSID, "HideDisabledSchedules", "0", pdev)
         luup.variable_set(SYSSID, "CycleMult", "1", pdev)
         luup.variable_set(SYSSID, "LastUpdate", "0", pdev)
+        luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
+        return
     end
 
-    -- No per-version changes yet. -- if s < 00103 then ...
+    -- No per-version changes yet. e.g. if s < 00103 then ...
 
     -- Update version state var.
     if (s ~= _CONFIGVERSION) then
