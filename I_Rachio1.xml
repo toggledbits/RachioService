@@ -10,8 +10,7 @@
             luup.log("Rachio Service Plugin START-UP!")
             rachio = require("L_Rachio1")
             rachio_plugin_tick = rachio.tick
-            rachio.start(dev)
-            return true,"OK","Rachio Service Plugin"
+            return rachio.start(dev)
         end
     </functions>
     <startup>startRachio1</startup>

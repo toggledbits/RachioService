@@ -421,13 +421,28 @@
                     "ControlType": "label",
                     "Label": {
                         "lang_tag": "tb_rachiodevice_about",
-                        "text": "WARNING! Reset Service should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.0 2017-08-15 &#169; 2017 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>."
+                        "text": "WARNING! Reset Service should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.1 2018-01-15 &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>."
                     },
                     "Display": {
                         "Top": 292,
                         "Left": 5,
                         "Width": 320,
-                        "Height": 24
+                        "Height": 96
+                    }
+                },
+                {
+                    "ControlType": "label",
+                    "top": 0,
+                    "left": 0,
+                    "Label": {
+                        "lang_tag": "tb_sitesensor_donate",
+                        "text": "<b>Find the Rachio plug-in useful?</b> Please consider supporting the project with <a href=\"https://www.makersupport.com/toggledbits\">a one-time &ldquo;tip&rdquo;, or a monthly $1 donation</a>. I am grateful for any support you choose to give!"
+                    },
+                    "Display": {
+                        "Top": 384,
+                        "Left": 5,
+                        "Width": 320,
+                        "Height": 96
                     }
                 }
             ]

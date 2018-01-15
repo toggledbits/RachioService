@@ -23,8 +23,8 @@
 
 module("L_Rachio1", package.seeall)
 
-local _NAME = "Rachio"
-local _VERSION = "1.0"
+local _PLUGIN_NAME = "Rachio"
+local _PLUGIN_VERSION = "1.1"
 local _CONFIGVERSION = 00105
 
 local API_BASE = "https://api.rach.io/1"
@@ -98,7 +98,7 @@ local function dump(t)
         else
             val = tostring(v)
         end
-        str = str .. sep .. k .. "=" .. val
+        str = str .. sep .. tostring(k) .. "=" .. val
         sep = ", "
     end
     str = str .. " }"
@@ -110,7 +110,7 @@ local function L(msg, ...)
     if type(msg) == "table" then
         str = msg["prefix"] .. msg["msg"]
     else
-        str = _NAME .. ": " .. msg
+        str = _PLUGIN_NAME .. ": " .. msg
     end
     str = string.gsub(str, "%%(%d+)", function( n )
             n = tonumber(n, 10)
@@ -129,7 +129,7 @@ end
 
 local function D(msg, ...)
     if debugMode then
-        L( { msg=msg,prefix=(_NAME .. "::") }, unpack(arg) )
+        L( { msg=msg,prefix=_PLUGIN_NAME .. "(debug)::" }, ... )
     end
 end
 
@@ -1066,9 +1066,9 @@ local function checkFirmware(dev)
     end
 
     -- We're good.
-    local check = luup.variable_get(MYSID, "UI7Check", dev)
+    local check = luup.variable_get(SYSSID, "UI7Check", dev)
     if check ~= "true" then
-        luup.variable_set(MYSID, "UI7Check", "true", dev)
+        luup.variable_set(SYSSID, "UI7Check", "true", dev)
     end
     return true
 end
@@ -1089,9 +1089,11 @@ local function runOnce(pdev)
         luup.variable_set(SYSSID, "HideDisabledSchedules", "0", pdev)
         luup.variable_set(SYSSID, "CycleMult", "1", pdev)
         luup.variable_set(SYSSID, "LastUpdate", "0", pdev)
+        luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
+        return
     end
 
-    -- No per-version changes yet. -- if s < 00103 then ...
+    -- No per-version changes yet. e.g. if s < 00103 then ...
 
     -- Update version state var.
     if (s ~= _CONFIGVERSION) then
@@ -1101,7 +1103,7 @@ end
 
 -- Return the plugin version string
 function getVersion()
-    return _VERSION, _CONFIGVERSION
+    return _PLUGIN_VERSION, _CONFIGVERSION
 end
 
 local function init(pdev)
@@ -1146,7 +1148,7 @@ end
 
 -- Initialize.
 function start(pdev)
-    L("Starting plugin device %1 version %2", pdev, _VERSION)
+    L("starting plugin version %2 device %1", pdev, _PLUGIN_VERSION)
     if pdev == nil then pdev = luup.device end
     pdev = tonumber(pdev,10)
 
@@ -1179,8 +1181,10 @@ function start(pdev)
     if init(pdev) then
         -- Start
         run(pdev)
+        return true, "OK", _PLUGIN_NAME
     else
         hardFail(HTTPREQ_GENERICERROR, "Offline (failed init)");
+        return false, "Initialization failed", _PLUGIN_NAME
     end
 end
 

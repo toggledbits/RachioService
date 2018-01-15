@@ -9,6 +9,8 @@
         <friendlyName>Rachio Zone</friendlyName>
         <handleChildren>0</handleChildren>
         <staticJson>D_RachioZone1.json</staticJson>
+        <Category_Num>3</Category_Num>
+        <Subcategory_Num>7</Subcategory_Num>
         <serviceList>
             <service>
                 <serviceType>urn:schemas-toggledbits-com:service:RachioZone:1</serviceType>

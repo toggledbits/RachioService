@@ -88,6 +88,7 @@ var RachioDevice1 = (function (api) {
 
             html += "</div>"; /* iro-zone-controls */
             html += "</div>"; /* iro-custom */
+			
             // Push generated HTML to page
             api.setCpanelContent(html);
 
