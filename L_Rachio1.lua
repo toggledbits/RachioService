@@ -1033,6 +1033,14 @@ function rachioSkipSchedule( devnum )
     return false
 end
 
+function rachioSetDebug( devnum, enable )
+    D("rachioSetDebug(%1,%2)", devnum, enable)
+    if enable == 1 or enable == "1" or enable == true or enable == "true" then
+        debugMode = true
+        D("rachioSetDebug() debug logging enabled")
+    end
+end
+
 function testAction( devnum, settings )
     D("testAction(%1,%2)", devnum, settings)
     return true
@@ -1325,4 +1333,180 @@ function setTraceMode( devnum, newState )
     if newState == nil then newState = true end
     -- Sets debug only; no trace in production/released code.
     debugMode = newState
+end
+
+local function issKeyVal( k, v, s )
+    if s == nil then s = {} end
+    s["key"] = tostring(k)
+    s["value"] = tostring(v)
+    return s
+end
+
+local function map( m, v, d )
+    if m[v] == nil then return d end
+    return m[v]
+end
+
+local function getDevice( dev, pdev, v )
+    local dkjson = require("dkjson")
+    if v == nil then v = luup.devices[dev] end
+    local devinfo = { 
+          devNum=dev
+        , ['type']=v.device_type
+        , description=v.description or ""
+        , room=v.room_num or 0
+        , udn=v.udn or ""
+        , id=v.id
+        , ['device_json'] = luup.attr_get( "device_json", dev )
+        , ['impl_file'] = luup.attr_get( "impl_file", dev )
+        , ['device_file'] = luup.attr_get( "device_file", dev )
+        , manufacturer = luup.attr_get( "manufacturer", dev ) or ""
+        , model = luup.attr_get( "model", dev ) or ""
+    }
+    local rc,t,httpStatus
+    rc,t,httpStatus = luup.inet.wget("http://localhost/port_3480/data_request?id=status&DeviceNum=" .. dev .. "&output_format=json", 15)
+    if httpStatus ~= 200 or rc ~= 0 then 
+        devinfo['_comment'] = string.format( 'State info could not be retrieved, rc=%d, http=%d', rc, httpStatus )
+        return devinfo
+    end
+    local d = dkjson.decode(t)
+    local key = "Device_Num_" .. dev
+    if d ~= nil and d[key] ~= nil and d[key].states ~= nil then d = d[key].states else d = nil end
+    devinfo.states = d or {}
+    return devinfo
+end
+
+function requestHandler(lul_request, lul_parameters, lul_outputformat)
+    D("requestHandler(%1,%2,%3) luup.device=%4", lul_request, lul_parameters, lul_outputformat, luup.device)
+    local action = lul_parameters['action'] or lul_parameters['command'] or ""
+    local deviceNum = tonumber( lul_parameters['device'], 10 ) or luup.device
+    if action == "debug" then
+        local err,msg,job,args = luup.call_action( SYSSID, "SetDebug", { debug=1 }, deviceNum )
+        return string.format("Device #%s result: %s, %s, %s, %s", tostring(deviceNum), tostring(err), tostring(msg), tostring(job), dump(args))
+    end
+
+    if action:sub( 1, 3 ) == "ISS" then
+        -- ImperiHome ISS Standard System API, see http://dev.evertygo.com/api/iss#types
+        local dkjson = require('dkjson')
+        local path = lul_parameters['path'] or action:sub( 4 ) -- Work even if I'home user forgets &path=
+        if path == "/system" then
+            return dkjson.encode( { id="AutoVirtualThermostat-" .. luup.pk_accesspoint, apiversion=1 } ), "application/json"
+        elseif path == "/rooms" then
+            local roomlist = { { id=0, name="No Room" } }
+            local rn,rr
+            for rn,rr in pairs( luup.rooms ) do 
+                table.insert( roomlist, { id=rn, name=rr } )
+            end
+            return dkjson.encode( { rooms=roomlist } ), "application/json"
+        elseif path == "/devices" then
+            local devices = {}
+            local lnum,ldev
+            for lnum,ldev in pairs( luup.devices ) do
+                -- ??? Can we figure out DevRain?
+                if ldev.device_type == ZONETYPE then
+                    local issinfo = {}
+                    local z = luup.variable_get( ZONESID, "Watering", lnum ) or "0"
+                    local icon = "ok"
+                    if z == "1" then icon = "watering" end
+                    table.insert( issinfo, issKeyVal("Status", z) )
+                    table.insert( issinfo, issKeyVal("pulseable", "0") )
+                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/rachio/assets/rachio-zone-" .. icon .. "-60x60.png" ) )
+                    local dev = { id=tostring(lnum), 
+                        name=ldev.description or ("#" .. lnum), 
+                        ["type"]="DevSwitch", 
+                        params=issinfo }
+                    if ldev.room_num ~= nil and ldev.room_num ~= 0 then dev.room = tostring(ldev.room_num) end
+                    table.insert( devices, dev )
+                elseif ldev.device_type == SCHEDULETYPE then
+                    local issinfo = {}
+                    local z = luup.variable_get( SCHEDULESID, "Watering", lnum ) or "0"
+                    local icon = "ok"
+                    if z == "1" then icon = "running" end
+                    table.insert( issinfo, issKeyVal("Status", z) )
+                    table.insert( issinfo, issKeyVal("pulseable", "0") )
+                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/rachio/assets/rachio-schedule-" .. icon .. "-60x60.png" ) )
+                    local dev = { id=tostring(lnum), 
+                        name=ldev.description or ("#" .. lnum), 
+                        ["type"]="DevSwitch", 
+                        params=issinfo }
+                    if ldev.room_num ~= nil and ldev.room_num ~= 0 then dev.room = tostring(ldev.room_num) end
+                    table.insert( devices, dev )
+                end
+            end
+            return dkjson.encode( { devices=devices } ), "application/json"
+        else -- action
+            local dev, act, p = string.match( path, "/devices/([^/]+)/action/([^/]+)/*(.*)$" )
+            dev = tonumber( dev, 10 )
+            if dev ~= nil and act ~= nil then
+                act = string.upper( act )
+                D("requestHandler() handling action path %1, dev %2, action %3, param %4", path, dev, act, p )
+                if luup.devices[dev] == nil then
+                    L("Invalid ISS request (device %1 not found): %2", dev, path)
+                elseif act == "SETSTATUS" then
+                    if luup.devices[dev].device_type == ZONETYPE then
+                        local dur = 5
+                        if p ~= "1" then dur = 0 end
+                        luup.call_action( ZONESID, "StartZone", { durationMinutes=dur }, dev )
+                    elseif luup.devices[dev].device_type == SCHEDULETYPE then
+                        if p == "1" then
+                            luup.call_action( SCHEDULESID, "RunSchedule", {}, dev )
+                        else
+                            -- To stop a schedule, we have to tell the controller (parent of schedule) to stop.
+                            local parent = luup.variable_get(DEVICESID, "ParentDevice", dev)
+                            if parent ~= nil then
+                                -- No need to resolve; we can pass parent directly.
+                                luup.call_action( DEVICESID, "DeviceStop", {}, parent )
+                            else
+                                L("ISS schedule stop could not be handled, parent device udn=%1 for schedule %2 (%3) could not be located", parent, dev, luup.devices[dev].description)
+                            end
+                        end
+                    end
+                else
+                    D("requestHandler(): ISS action %1 not handled, ignored", act)
+                end
+            else
+                D("requestHandler(): ISS malformed action request %1", path)
+            end
+            return "{}", "application/json"
+        end
+    end
+    
+    if action == "status" then
+        local dkjson = require("dkjson")
+        if dkjson == nil then return "Missing dkjson library", "text/plain" end
+        local st = {
+            name=_PLUGIN_NAME,
+            version=_PLUGIN_VERSION,
+            configversion=_CONFIGVERSION,
+            author="Patrick H. Rigney (rigpapa)",
+            url=_PLUGIN_URL,
+            ['type']=MYTYPE,
+            responder=luup.device,
+            timestamp=os.time(),
+            system = {
+                version=luup.version,
+                isOpenLuup=isOpenLuup,
+                isALTUI=isALTUI,
+                units=luup.attr_get( "TemperatureFormat", 0 ),
+            },            
+            devices={}
+        }
+        local k,v
+        for k,v in pairs( luup.devices ) do
+            if v.device_type == SYSTYPE or v.device_type == DEVICETYPE 
+                or v.device_type == ZONETYPE or v.device_type == SCHEDULETYPE then
+                devinfo = getDevice( k, luup.device, v ) or {}
+                table.insert( st.devices, devinfo )
+            end
+        end
+        return dkjson.encode( st ), "application/json"
+    end
+    
+    return "<html><head><title>" .. _PLUGIN_NAME .. " Request Handler"
+        .. "</title></head><body bgcolor='white'>Request format: <tt>http://" .. (luup.attr_get( "ip", 0 ) or "...")
+        .. "/port_3480/data_request?id=lr_" .. lul_request 
+        .. "&action=...</tt><p>Actions: status<br>debug&device=<i>devicenumber</i><br>ISS"
+        .. "<p>Imperihome ISS URL: <tt>...&action=ISS&path=</tt><p>Documentation: <a href='"
+        .. _PLUGIN_URL .. "' target='_blank'>" .. _PLUGIN_URL .. "</a></body></html>"
+        , "text/html"
 end
