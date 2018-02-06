@@ -24,7 +24,7 @@
 module("L_Rachio1", package.seeall)
 
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.1"
+local _PLUGIN_VERSION = "1.2dev"
 local _CONFIGVERSION = 00105
 
 local API_BASE = "https://api.rach.io/1"

@@ -421,7 +421,7 @@
                     "ControlType": "label",
                     "Label": {
                         "lang_tag": "tb_rachio_about",
-                        "text": "WARNING! Reset Service should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.1 2018-01-15 &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>."
+                        "text": "WARNING! Reset Service should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.2dev &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>."
                     },
                     "Display": {
                         "Top": 292,
