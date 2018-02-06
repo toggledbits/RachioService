@@ -10,6 +10,8 @@
             luup.log("Rachio Service Plugin START-UP!")
             rachio = require("L_Rachio1")
             rachio_plugin_tick = rachio.tick
+            rachioRequestHandler = rachio.requestHandler
+            luup.register_handler("rachioRequestHandler", "Rachio")
             return rachio.start(dev)
         end
     </functions>
@@ -122,6 +124,13 @@
             <run>
                 luup.log("rachio=" .. type(rachio))
                 return true
+            </run>
+        </action>
+        <action>
+            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+            <name>SetDebug</name>
+            <run>
+                rachio.rachioSetDebug( lul_device, lul_settings.debug )
             </run>
         </action>
     </actionList>
