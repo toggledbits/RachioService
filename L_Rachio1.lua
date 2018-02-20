@@ -393,7 +393,8 @@ local function rateLimit()
     return t > rateMax
 end
 
-local function getJSON(url, method, body)
+local function getJSON(path, method, body)
+    local url = ( luup.variable_get( SYSSID, "APIBase", luup.device ) or API_BASE ) + path
     if method == nil then method = "GET" end
 
     -- Check our query rate, fail if exceeded.
@@ -486,7 +487,7 @@ local function doSchedCheck( cd, parentDevice )
     D("doSchedCheck(%1,%2)", cd.id, parentDevice)
     local status, schedule
 
-    status,schedule = getJSON(API_BASE .. "/public/device/" .. cd.id .. "/current_schedule")
+    status,schedule = getJSON("/public/device/" .. cd.id .. "/current_schedule")
     if status == HTTPREQ_OK then
         -- check schedule type? particulars for type?
         local watering = getVarNumeric(DEVICESID, "Watering", 0, cd.udn)
@@ -907,7 +908,7 @@ function rachioDeviceStop( devnum )
     D("rachioDeviceStop(%1)", devnum)
 
     local d = luup.devices[ devnum ]
-    local status,resp = getJSON(API_BASE .. "/public/device/stop_water", "PUT", { id=d.id })
+    local status,resp = getJSON("/public/device/stop_water", "PUT", { id=d.id })
     D("rachioDeviceStop() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         forceUpdate(devnum)
@@ -922,7 +923,7 @@ function rachioDeviceOff( devnum )
 
     -- Call API to turn off controller
     local d = luup.devices[ devnum ]
-    local status,resp = getJSON(API_BASE .. "/public/device/off", "PUT", { id=d.id })
+    local status,resp = getJSON("/public/device/off", "PUT", { id=d.id })
     D("rachioDeviceOff() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         forceUpdate(devnum)
@@ -937,7 +938,7 @@ function rachioDeviceOn( devnum )
 
     -- Call API to turn on controller
     local d = luup.devices[ devnum ]
-    local status,resp = getJSON(API_BASE .. "/public/device/on", "PUT", { id=d.id })
+    local status,resp = getJSON("/public/device/on", "PUT", { id=d.id })
     D("rachioDeviceOn() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         forceUpdate(devnum)
@@ -967,7 +968,7 @@ function rachioStartMultiZone( devnum, zoneData )
     local rd = json.encode(req)
     D("rachioStartMultiZone() req data is %1", rd)
     if n > 0 then
-        local status,resp = getJSON(API_BASE .. "/public/zone/start_multiple", "PUT", req)
+        local status,resp = getJSON("/public/zone/start_multiple", "PUT", req)
         D("rachioStartMultiZone() getJSON returned %1,%2", status,resp)
         if status == HTTPREQ_OK then
             forceUpdate(devnum)
@@ -986,7 +987,7 @@ function rachioStartZone( devnum, durMinutes )
     if durMinutes < 0 then durMinutes = 0 elseif durMinutes > 180 then durMinutes = 180 end
 
     local d = luup.devices[ devnum ]
-    local status,resp = getJSON(API_BASE .. "/public/zone/start", "PUT", { id=d.id, duration=durMinutes*60 })
+    local status,resp = getJSON("/public/zone/start", "PUT", { id=d.id, duration=durMinutes*60 })
     D("rachioStartZone() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         forceUpdate(devnum)
@@ -1000,7 +1001,7 @@ function rachioRunSchedule( devnum )
     D("rachioRunSchedule(%1)", devnum)
 
     local d = luup.devices[ devnum ]
-    local status,resp = getJSON(API_BASE .. "/public/schedulerule/start", "PUT", { id=d.id })
+    local status,resp = getJSON("/public/schedulerule/start", "PUT", { id=d.id })
     D("rachioRunSchedule() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         forceUpdate(devnum)
@@ -1014,7 +1015,7 @@ function rachioSkipSchedule( devnum )
     D("rachioSkipSchedule(%1)", devnum)
 
     local d = luup.devices[ devnum ]
-    local status,resp = getJSON(API_BASE .. "/public/schedulerule/skip", "PUT", { id=d.id })
+    local status,resp = getJSON("/public/schedulerule/skip", "PUT", { id=d.id })
     D("rachioSkipSchedule() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         forceUpdate(devnum)
@@ -1208,7 +1209,7 @@ local function ptick(p)
     -- Fetch person data. In Rachio API, the direct person query reports
     -- everything, so do as much with that report as we can.
     showServiceStatus("Online (identifying)", pdev)
-    local status,data = getJSON(API_BASE .. "/public/person/info")
+    local status,data = getJSON("/public/person/info")
     luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
     if status == HTTPREQ_AUTHFAIL then
         -- If API key isn't valid, exit without rescheduling. We can't work (at all).
@@ -1233,7 +1234,7 @@ local function ptick(p)
         end
 
         -- Now we know who, query for what...
-        status,data = getJSON(API_BASE .. "/public/person/" .. data.id)
+        status,data = getJSON("/public/person/" .. data.id)
         luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
         if status ~= HTTPREQ_OK then
             L("ptick() full query, invalid API response: %1", data)
