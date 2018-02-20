@@ -394,7 +394,7 @@ local function rateLimit()
 end
 
 local function getJSON(path, method, body)
-    local url = ( luup.variable_get( SYSSID, "APIBase", luup.device ) or API_BASE ) + path
+    local url = ( luup.variable_get( SYSSID, "APIBase", luup.device ) or API_BASE ) .. path
     if method == nil then method = "GET" end
 
     -- Check our query rate, fail if exceeded.
