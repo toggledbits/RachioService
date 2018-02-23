@@ -24,7 +24,7 @@
 module("L_Rachio1", package.seeall)
 
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.2dev"
+local _PLUGIN_VERSION = "1.2"
 local _PLUGIN_URL = "http://www.toggledbits.com/demii"
 local _CONFIGVERSION = 00105
 
@@ -596,7 +596,7 @@ local function doSchedCheck( cd, parentDevice )
         end
     else
         -- Error. Log this, but don't treat as hard error unless it's an auth problem.
-        L("setUpDevices() request for current schedule for device %1 returned status %2 with %3", cd.id, status, schedule)
+        L("doSchedCheck() request for current schedule for device %1 returned status %2 with %3", cd.id, status, schedule)
         if status == HTTPREQ_AUTHFAIL then
             hardFail(status, "Invalid API key")
         end
@@ -753,7 +753,8 @@ local function setUpDevices(data, parentDevice)
     showServiceStatus("Online (configuring)", parentDevice)
 
     -- Save the service/person UID
-    L("setUpDevices(): person %1 (%2) user %3", data.fullName, data.email, data.username)
+    -- D("setUpDevices(): person %1 (%2) user %3", data.fullName, data.email, data.username)
+    L("Taking inventory")
     luup.variable_set(SYSSID, "RachioID", data.id, parentDevice)
     luup.variable_set(SYSSID, "Username", data.username, parentDevice)
     luup.variable_set(SYSSID, "Fullname", data.fullName, parentDevice)
@@ -819,13 +820,9 @@ local function setUpDevices(data, parentDevice)
     for _ in pairs(knownDevices) do changes = changes + 1 break end
 
     -- Finished enumerating zones for this device. If we changed any, sync() will reload Luup now.
-    D("setUpDevices() finished setup scan, " .. tostring(changes) .. " changes")
+    L("Inventory completed, %1 changes to configuration.", changes)
     luup.chdev.sync( parentDevice, ptr )
-    if changes > 0 then
-        return false
-    end
-
-    return true
+    return changes == 0
 end
 
 local function forceUpdate( devnum )
@@ -1223,13 +1220,13 @@ local function ptick(p)
     -- Check response for first-level problems
     if status ~= HTTPREQ_OK then
         -- Soft fail of some kind. Double poll interval and wait to retry.
-        L("ptick() can't identify, invalid API response: %1", data)
+        L("Can't identify, invalid API response: %1", data)
         if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
         showServiceStatus("Online (delaying)", pdev)
     else
         -- Parsable response. Process it.
         if data.id == nil or data.id == "" then
-            L("ptick() parseable response, but doesn't have what we need: %1", data)
+            L("Parseable response, but doesn't have what we need: %1", data)
             hardFail(HTTPREQ_GENERICERROR, "Offline (account error)")
         end
 
@@ -1237,13 +1234,13 @@ local function ptick(p)
         status,data = getJSON("/public/person/" .. data.id)
         luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
         if status ~= HTTPREQ_OK then
-            L("ptick() full query, invalid API response: %1", data)
+            L("Full query, invalid API response: %1", data)
             if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
             showServiceStatus("Online (delaying)", pdev)
         else
             -- Good response. Do our device update.
             if firstRun then
-                L("ptick(): firstRun is true, set up devices")
+                L("First run, set up devices")
                 setUpDevices( data, pdev )
                 firstRun = false -- don't do this again
             end
@@ -1268,7 +1265,7 @@ function tick(stepStampCheck)
     -- "Craftiness" here. If stamp is -1, we're being run by another thread explicitly.
     local stepStamp = tonumber(stepStampCheck,10)
     if (stepStamp ~= -1 and stepStamp ~= runStamp) then
-        L("tick() stamp mismatch, expecting %1 got %2. Another thread running, bye!", runStamp, stepStampCheck)
+        D("tick() stamp mismatch, expecting %1 got %2. Another thread running, bye!", runStamp, stepStampCheck)
         return
     end
 
