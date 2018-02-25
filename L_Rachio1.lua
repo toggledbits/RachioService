@@ -51,7 +51,7 @@ local HTTPREQ_JSONERROR = 3
 local HTTPREQ_RATELIMIT = 4
 local HTTPREQ_GENERICERROR = 99
 
-local DEFAULT_INTERVAL = 150    -- Default interval between API polls; can be overriden by SYSSID/Interval
+local DEFAULT_INTERVAL = 180    -- Default interval between API polls; can be overriden by SYSSID/Interval
 local MAX_CYCLEMULT = 256       -- Max multiplier for poll interval (doubles on each error up to this number)
 local MAX_INTERVAL = 14400      -- Absolute max delay we'll allow
 
@@ -1200,6 +1200,10 @@ function start(pdev)
 
     -- Initialize
     luup.variable_set(SYSSID, "PID", "", pdev) -- force person ID fetch
+    local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+    if iv < DEFAULT_INTERVAL then
+        L({level=2,msg="Warning: Interval is %1; values < %2 are likely to exceed Rachio's daily API request quota."}, iv, DEFAULT_INTERVAL)
+    end
     if init(pdev) then
         -- Start
         run(pdev)
