@@ -26,7 +26,9 @@ module("L_Rachio1", package.seeall)
 local _PLUGIN_NAME = "Rachio"
 local _PLUGIN_VERSION = "1.2"
 local _PLUGIN_URL = "http://www.toggledbits.com/demii"
-local _CONFIGVERSION = 00105
+local _CONFIGVERSION = 00106
+
+local debugMode = false
 
 local API_BASE = "https://api.rach.io/1"
 
@@ -49,14 +51,14 @@ local HTTPREQ_JSONERROR = 3
 local HTTPREQ_RATELIMIT = 4
 local HTTPREQ_GENERICERROR = 99
 
-local DEFAULT_INTERVAL = 60     -- Default interval between API polls; can be overriden by SYSSID/Interval
-local MAX_CYCLEMULT = 128       -- Max multiplier for poll interval (doubles on each error up to this number)
-
-local debugMode = false
+local DEFAULT_INTERVAL = 150    -- Default interval between API polls; can be overriden by SYSSID/Interval
+local MAX_CYCLEMULT = 256       -- Max multiplier for poll interval (doubles on each error up to this number)
+local MAX_INTERVAL = 14400      -- Absolute max delay we'll allow
 
 local runStamp = 0
 local tickCount = 0
 local lastTick = 0
+local nthresh = 1360 -- threshold for API quota warnings
 local updatePending = false
 local firstRun = false
 local messages = {}
@@ -108,10 +110,10 @@ local function L(msg, ...)
     local str
     local level = 50
     if type(msg) == "table" then
-        str = msg["prefix"] .. msg["msg"]
-        level = msg["level"] or level
+        str = tostring(msg.prefix or _PLUGIN_NAME) .. ": " .. tostring(msg.msg)
+        level = msg.level or level
     else
-        str = _PLUGIN_NAME .. ": " .. msg
+        str = _PLUGIN_NAME .. ": " .. tostring(msg)
     end
     str = string.gsub(str, "%%(%d+)", function( n )
             n = tonumber(n, 10)
@@ -339,7 +341,7 @@ end
 --     whatever error befalls the API call will crop up on a subsequent update
 --     cycle if its not transient. But should be elegant, dontcha think?
 hardFail = function (status, msg) -- forward declared
-    L("called hardFail(%1,%2)", status, msg)
+    D("hardFail(%1,%2)", status, msg)
 
     -- Set ServiceCheck variable and update status message
     if status == 0 or status == nil then status = 99 end
@@ -354,6 +356,8 @@ hardFail = function (status, msg) -- forward declared
         setMessage("NO SERVICE", DEVICESID, devobj.id, 99)
         luup.variable_set(DEVICESID, "Message", "NO SERVICE", devobj.udn)
     end
+    
+    L({level=1,msg=msg})
 
     -- Traceback
     L("hardFail() traceback: %1", debug.traceback())
@@ -433,11 +437,25 @@ local function getJSON(path, method, body)
     else
         requestor = http
     end
+    
+    -- Update call count.
+    local parent = findServicePlugin(luup.device)
+    local ncall = getVarNumeric(SYSSID, "DailyCalls", 0, parent) + 1
+    local ntime = getVarNumeric(SYSSID, "DailyStamp", 0, parent)
+    local today = math.floor(os.time() / 86400)
+    if ntime ~= today then
+        D("getJSON() call counter day changed, was %1 now %2, resetting counter", ntime, today)
+        luup.variable_set(SYSSID, "DailyCalls", 1, parent)
+        luup.variable_set(SYSSID, "DailyStamp", today, parent)
+    else 
+        D("getJSON() call counter now %1", ncall)
+        luup.variable_set(SYSSID, "DailyCalls", ncall, parent)
+    end
 
     -- Make the request.
     local r = {}
     http.TIMEOUT = timeout -- N.B. http not https, regardless
-    D("getJSON() %1 %2, headers=%4", method, url, tHeaders)
+    D("getJSON() #%1: %2 %3, headers=%4", ncall, method, url, tHeaders)
     local respBody, httpStatus, httpHeaders = requestor.request{
         url = url,
         source = src,
@@ -1078,6 +1096,7 @@ local function runOnce(pdev)
         -- First-ever run
         L("runOnce() creating config")
         luup.variable_set(SYSSID, "APIKey", "", pdev)
+        luup.variable_set(SYSSID, "PID", "", pdev)
         luup.variable_set(SYSSID, "ServiceCheck", HTTPREQ_AUTHFAIL, pdev)
         luup.variable_set(SYSSID, "HideZones", "0", pdev)
         luup.variable_set(SYSSID, "HideDisabledZones", "0", pdev)
@@ -1085,11 +1104,19 @@ local function runOnce(pdev)
         luup.variable_set(SYSSID, "HideDisabledSchedules", "0", pdev)
         luup.variable_set(SYSSID, "CycleMult", "1", pdev)
         luup.variable_set(SYSSID, "LastUpdate", "0", pdev)
+        luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
+        luup.variable_set(SYSTEM, "DailyStamp", "0", pdev)
         luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
         return
     end
 
     -- No per-version changes yet. e.g. if s < 00103 then ...
+    if s < 00106 then 
+        L("Upgrading configuration to 00106...")
+        luup.variable_set(SYSSID, "PID", "", pdev)
+        luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
+        luup.variable_set(SYSTEM, "DailyStamp", "0", pdev)
+    end        
 
     -- Update version state var.
     if (s ~= _CONFIGVERSION) then
@@ -1172,6 +1199,7 @@ function start(pdev)
     runOnce(pdev)
 
     -- Initialize
+    luup.variable_set(SYSSID, "PID", "", pdev) -- force person ID fetch
     if init(pdev) then
         -- Start
         run(pdev)
@@ -1201,42 +1229,64 @@ local function ptick(p)
     local pdev = tonumber(p["pdev"],10)
     assert(pdev ~= nil and pdev > 0, "Invalid pdev");
 
-    local cycleMult = getVarNumeric(SYSSID, "CycleMult", "1", pdev)
+    local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
 
     -- Fetch person data. In Rachio API, the direct person query reports
     -- everything, so do as much with that report as we can.
-    showServiceStatus("Online (identifying)", pdev)
-    local status,data = getJSON("/public/person/info")
-    luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
-    if status == HTTPREQ_AUTHFAIL then
-        -- If API key isn't valid, exit without rescheduling. We can't work (at all).
-        if data == 401 then
-            -- API key set, but somehow not authorized
-            hardFail(status, "Offline (invalid API key)")
+    local person = luup.variable_get(SYSSID, "PID", pdev) or ""
+    if person == "" then
+        showServiceStatus("Online (identifying)", pdev)
+        local status,data = getJSON("/public/person/info")
+        luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
+        if status == HTTPREQ_AUTHFAIL then
+            -- If API key isn't valid, exit without rescheduling. We can't work (at all).
+            if data == 401 then
+                -- API key set, but somehow not authorized
+                hardFail(status, "Offline (invalid API key)")
+            end
+            hardFail(status, "Offline (API key not set)")
         end
-        hardFail(status, "Offline (API key not set)")
+        -- Check response for first-level problems
+        if status ~= HTTPREQ_OK then
+            if data == 429 then
+                -- Rachio API says we've queried too much (limit 1700/day)
+                -- Defer queries for at least an hour.
+                local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+                cycleMult = math.ceil( 3600 / iv )
+                L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
+                showServiceStatus("Online (quota exceeded--delaying)", pdev)
+            else
+                -- Soft fail of some kind. Double poll interval and wait to retry.
+                L("Can't identify, invalid API response: %1", data)
+                if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
+                showServiceStatus("Online (error--delaying)", pdev)
+            end
+        elseif data.id ~= nil and data.id ~= "" then
+            -- Good!
+            luup.variable_set(SYSSID, "PID", data.id, pdev)
+            person = data.id
+        else    
+            hardFail(status, "Offline (can't ident)")
+        end
     end
 
-    -- Check response for first-level problems
-    if status ~= HTTPREQ_OK then
-        -- Soft fail of some kind. Double poll interval and wait to retry.
-        L("Can't identify, invalid API response: %1", data)
-        if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-        showServiceStatus("Online (delaying)", pdev)
-    else
-        -- Parsable response. Process it.
-        if data.id == nil or data.id == "" then
-            L("Parseable response, but doesn't have what we need: %1", data)
-            hardFail(HTTPREQ_GENERICERROR, "Offline (account error)")
-        end
-
+    if person ~= "" then
         -- Now we know who, query for what...
-        status,data = getJSON("/public/person/" .. data.id)
+        showServiceStatus("Online (updating)", pdev)
+        local status,data = getJSON("/public/person/" .. person)
         luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
         if status ~= HTTPREQ_OK then
-            L("Full query, invalid API response: %1", data)
-            if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-            showServiceStatus("Online (delaying)", pdev)
+            if data == 429 then
+                -- Rachio API quota exceeded
+                local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+                cycleMult = math.ceil( 3600 / iv )
+                L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
+                showServiceStatus("Online (quota exceeded--delaying)", pdev)
+            else
+                L("Full query, invalid API response: %1", data)
+                if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
+                showServiceStatus("Online (error--delaying)", pdev)
+            end
         else
             -- Good response. Do our device update.
             if firstRun then
@@ -1250,6 +1300,15 @@ local function ptick(p)
                 cycleMult = 1
             end
         end
+    end
+    
+    -- Check our call count...
+    local ncall = getVarNumeric(SYSSID, "DailyCalls", 0)
+    if ncall >= nthresh then
+        local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+        L({level=2,msg="WARNING! Number of daily Rachio API calls high (%1 so far); consider increasing Interval (currently %2)"},
+            ncall, iv)
+        nthresh = nthresh + 50 -- warn every first calls after first hit
     end
 
     luup.variable_set(SYSSID, "CycleMult", cycleMult, pdev)
@@ -1296,9 +1355,9 @@ function tick(stepStampCheck)
         if stepStamp ~= -1 then
             local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
             local nextCycleDelay = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev) * cycleMult
+            if nextCycleDelay < 1 then nextCycleDelay = 60 
+            elseif nextCycleDelay > MAX_INTERVAL then nextCycleDelay = MAX_INTERVAL end
             D("tick() cycle finished, next in " .. nextCycleDelay .. " seconds, cycleMult is " .. tostring(cycleMult))
-            if nextCycleDelay < 1 then nextCycleDelay = 60 end
-            -- hardFail(HTTPREQ_GENERICERROR, "Offline (debug stop)")
             luup.call_delay("rachio_plugin_tick", nextCycleDelay, stepStamp)
         end
         return
