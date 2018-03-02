@@ -60,7 +60,7 @@ local tickCount = 0
 local lastTick = 0
 local nthresh = 1360 -- threshold for API quota warnings
 local updatePending = false
-local firstRun = false
+local firstRun = true
 local messages = {}
 local isALTUI = false
 local isOpenLuup = false
@@ -240,7 +240,7 @@ local function isServiceCheck()
 end
 
 function resolveDevice( dev )
-    D("resolveDevice(%1)", dev)
+    -- D("resolveDevice(%1)", dev)
     if dev == nil then return dev end
     local ndev = tonumber(dev,10)
     if ndev ~= nil and ndev > 0 and luup.devices[ndev] ~= nil then
@@ -445,12 +445,11 @@ local function getJSON(path, method, body)
     local today = math.floor(os.time() / 86400)
     if ntime ~= today then
         D("getJSON() call counter day changed, was %1 now %2, resetting counter", ntime, today)
-        luup.variable_set(SYSSID, "DailyCalls", 1, parent)
+        ncall = 1
         luup.variable_set(SYSSID, "DailyStamp", today, parent)
-    else 
-        D("getJSON() call counter now %1", ncall)
-        luup.variable_set(SYSSID, "DailyCalls", ncall, parent)
-    end
+    end 
+    D("getJSON() daily call counter now %1", ncall)
+    luup.variable_set(SYSSID, "DailyCalls", ncall, parent)
 
     -- Make the request.
     local r = {}
@@ -503,9 +502,7 @@ end
 -- Handle schedule check. cd is device node, parentDevice is device number/id
 local function doSchedCheck( cd, parentDevice )
     D("doSchedCheck(%1,%2)", cd.id, parentDevice)
-    local status, schedule
-
-    status,schedule = getJSON("/public/device/" .. cd.id .. "/current_schedule")
+    local status, schedule = getJSON("/public/device/" .. cd.id .. "/current_schedule")
     if status == HTTPREQ_OK then
         -- check schedule type? particulars for type?
         local watering = getVarNumeric(DEVICESID, "Watering", 0, cd.udn)
@@ -629,7 +626,6 @@ local function doDeviceUpdate( data, parentDevice )
     local lastUpdate = os.time()
 
     showServiceStatus("Online (updating)", parentDevice)
-    setMessage("Online", SYSSID, parentDevice, 0) -- default final message
 
     -- Save the service/person UID
     D("doDeviceUpdate(): person %1 (%2) user %3", data.fullName, data.email, data.username)
@@ -638,7 +634,7 @@ local function doDeviceUpdate( data, parentDevice )
     luup.variable_set(SYSSID, "Username", data.username, parentDevice)
 
     -- Loop over devices
-    for _,v in ipairs(data.devices) do
+    for _,v in pairs(data.devices) do
         if v.status == nil or v.status:lower() ~= "online" then
             setMessage("*" .. tostring(v.status), DEVICESID, v.id, 99)
         elseif v.on == 0 then
@@ -682,7 +678,7 @@ local function doDeviceUpdate( data, parentDevice )
             -- Now go through device's zones, setting data
             local hide = getVarNumeric(SYSSID, "HideZones", 0, parentDevice)
             local hideDisabled = getVarNumeric(SYSSID, "HideDisabledZones", 0, parentDevice)
-            for _,z in ipairs(v.zones) do
+            for _,z in pairs(v.zones) do
                 local cz = findChildByUID( parentDevice, z.id )
                 if cz ~= nil then
                     local localHide = hide
@@ -700,14 +696,13 @@ local function doDeviceUpdate( data, parentDevice )
                     -- Don't reset the device automatically, though, because user may
                     -- scenes and Lua that could be broken by the renumbering.
                     L("doDeviceUpdate() child for zone %1 not found--skipping", z.id)
-                    firstRun = true
                 end
             end
 
             -- And over schedules...
             hide = getVarNumeric(SYSSID, "HideSchedules", 0, parentDevice)
             hideDisabled = getVarNumeric(SYSSID, "HideDisabledSchedules", 0, parentDevice)
-            for _,z in ipairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
+            for _,z in pairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
                 if v.on == 0 or v.paused ~= 0 then
                     -- Iro is off, so we there won't be automatic watering.
                     setMessage("Suspended", SCHEDULESID, z.id, 0)
@@ -719,7 +714,7 @@ local function doDeviceUpdate( data, parentDevice )
                 local cs = findChildByUID( parentDevice, z.id )
                 if cs ~= nil then
                     local zn = {}
-                    for _,l in ipairs(z.zones) do
+                    for _,l in pairs(z.zones) do
                         table.insert(zn, l.zoneNumber .. "=" .. (l.duration or ""))
                     end
                     local localHide = hide
@@ -740,26 +735,23 @@ local function doDeviceUpdate( data, parentDevice )
                     -- possibly renames) the children, which could break scenes and Lua
                     -- the user has configured. So log, but do nothing.
                     L("doDeviceUpdate() child for schedule %1 not found--skipping", z.id)
-                    firstRun = true
                 end
             end
 
-            -- Do a schedule check on this device
-            doSchedCheck( cd, parentDevice )
+            -- Do a schedule check on this device ??? Now done separately
+            -- doSchedCheck( cd, parentDevice )
         else
             -- Rachio data pointed us to a device we can't find. Forcing a reset
             -- of the child devices might be unfriendly, as it renumbers (and
             -- possibly renames) the children, which could break scenes and Lua
             -- the user has configured. So log, but do nothing.
             L("doDeviceUpdate() child for device %1 not found--skipping", v.id)
-            firstRun = true
         end
     end
 
     -- Successful update.
     luup.variable_set(SYSSID, "ServiceCheck", 0, parentDevice)
     luup.variable_set(SYSSID, "LastUpdate", lastUpdate, parentDevice)
-    postMessages()
 
     return true
 end
@@ -784,7 +776,7 @@ local function setUpDevices(data, parentDevice)
 
     -- Now pass through the devices again and enumerate all the zones for each.
     local knownDevices = findChildrenByType( parentDevice, DEVICETYPE )
-    for _,v in ipairs(data.devices) do
+    for _,v in pairs(data.devices) do
         D("setUpDevices():     device " .. tostring(v.id) .. " model " .. tostring(v.model))
         local cd = findChildByUID( parentDevice, v.id )
         if cd == nil then
@@ -801,7 +793,7 @@ local function setUpDevices(data, parentDevice)
 
         -- Now go through zones for this device...
         local knownZones = findChildrenByType( parentDevice, ZONETYPE )
-        for _,z in ipairs(v.zones) do
+        for _,z in pairs(v.zones) do
             D("setUpDevices():         zone " .. tostring(z.zoneNumber) .. " " .. tostring(z.name))
             local cz = findChildByUID( parentDevice, z.id )
             if cz == nil then
@@ -820,7 +812,7 @@ local function setUpDevices(data, parentDevice)
 
         -- And schedules
         local knownSchedules = findChildrenByType( parentDevice, SCHEDULETYPE )
-        for _,z in ipairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
+        for _,z in pairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
             D("setUpDevices():         schedule %1 name %2", z.id, z.name)
             local cs = findChildByUID( parentDevice, z.id )
             if cs == nil then
@@ -912,8 +904,8 @@ function rachioServiceReset( devnum )
     D("rachioServiceReset(%1)", devnum)
 
     showServiceStatus("Resetting...", devnum)
-    local ptr
-    ptr = luup.chdev.start( devnum )
+    luup.variable_set( SYSSID, "PID", "", devnum )
+    local ptr = luup.chdev.start( devnum )
     luup.chdev.sync( devnum, ptr )
     -- luup restart will happen, should take care of the rest
 end
@@ -1199,7 +1191,7 @@ function start(pdev)
     runOnce(pdev)
 
     -- Initialize
-    luup.variable_set(SYSSID, "PID", "", pdev) -- force person ID fetch
+    firstRun = true
     local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
     if iv < DEFAULT_INTERVAL then
         L({level=2,msg="Warning: Interval is %1; values < %2 are likely to exceed Rachio's daily API request quota."}, iv, DEFAULT_INTERVAL)
@@ -1234,6 +1226,8 @@ local function ptick(p)
     assert(pdev ~= nil and pdev > 0, "Invalid pdev");
 
     local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
+    
+    setMessage("Online", SYSSID, pdev, 0) -- default final message
 
     -- Fetch person data. In Rachio API, the direct person query reports
     -- everything, so do as much with that report as we can.
@@ -1277,34 +1271,56 @@ local function ptick(p)
     if person ~= "" then
         -- Now we know who, query for what...
         showServiceStatus("Online (updating)", pdev)
-        local status,data = getJSON("/public/person/" .. person)
-        luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
-        if status ~= HTTPREQ_OK then
-            if data == 429 then
-                -- Rachio API quota exceeded
-                local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
-                cycleMult = math.ceil( 3600 / iv )
-                L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
-                showServiceStatus("Online (quota exceeded--delaying)", pdev)
+        local problem = false
+        local lastUpdate = getVarNumeric( SYSSID, "LastUpdate", 0, pdev )
+        if firstRun or ( os.time() >= ( lastUpdate + getVarNumeric( SYSSID, "DeviceInterval", 3600, pdev ) ) ) then
+            local status,data = getJSON("/public/person/" .. person)
+            luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
+            if status ~= HTTPREQ_OK then
+                problem = true
+                if data == 429 then
+                    -- Rachio API quota exceeded
+                    local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+                    cycleMult = math.ceil( 3600 / iv )
+                    L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
+                    showServiceStatus("Online (quota exceeded--delaying)", pdev)
+                else
+                    L("Full query, invalid API response: %1", data)
+                    if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
+                    showServiceStatus("Online (error--delaying)", pdev)
+                end
             else
-                L("Full query, invalid API response: %1", data)
-                if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-                showServiceStatus("Online (error--delaying)", pdev)
-            end
-        else
-            -- Good response. Do our device update.
-            if firstRun then
-                L("First run, set up devices")
-                setUpDevices( data, pdev )
-                firstRun = false -- don't do this again
-            end
+                -- Good response. Do our device update.
+                if firstRun then
+                    L("First run, set up devices")
+                    setUpDevices( data, pdev )
+                    firstRun = false -- don't do this again
+                    luup.variable_set( SYSSID, "LastUpdate", 0, pdev )
+                end
 
-            if doDeviceUpdate( data, pdev ) then
-                -- Success. Make sure we reset cycleMult if it grew.
-                cycleMult = 1
+                -- Do device update (same data as set up if it was done)
+                doDeviceUpdate( data, pdev )
             end
         end
+
+        -- Each interval, we do a schedule check on each controller.
+        -- N.B. Schedule check for each devices is one query per...
+        if not problem then
+            local devices = findChildrenByType( pdev, DEVICETYPE )
+            for d,v in pairs(devices) do 
+                if not doSchedCheck( v, pdev ) then 
+                    problem = true
+                    break 
+                end
+            end
+        end
+        
+        -- Reset cycleMult if everything went smoothly.
+        if not problem then
+            cycleMult = 1
+        end
     end
+    postMessages()
     
     -- Check our call count...
     local ncall = getVarNumeric(SYSSID, "DailyCalls", 0)
