@@ -22,15 +22,17 @@
             <name>SetAPIKey</name>
             <run>
                 local newKey = lul_settings.newAPIKey or ""
-                newKey = string.gsub( newKey, "%s+", "" )
+                newKey = string.gsub( newKey, "%s+", "" ) -- remove all whitespace
                 if string.lower(newKey) == "trace" then
                     rachio.setTraceMode( lul_device, true )
                     luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "Message", "trace on", lul_device)
                 elseif string.lower(newKey) == "notrace" then
                     rachio.setTraceMode( lul_device, false )
                     luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "Message", "trace off", lul_device)
-                elseif string.len( newKey ) then
+                elseif newKey ~= "" then
+                    if string.match(newKey, "^X+$") then newKey = "" end -- remove API key
                     luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "APIKey", newKey, lul_device)
+                    luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "PID", "", lul_device)
                     rachio.start(lul_device)
                 end
                 return true

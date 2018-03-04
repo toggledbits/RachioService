@@ -28,7 +28,7 @@ local _PLUGIN_VERSION = "1.2"
 local _PLUGIN_URL = "http://www.toggledbits.com/demii"
 local _CONFIGVERSION = 00106
 
-local debugMode = false
+local debugMode = true
 
 local API_BASE = "https://api.rach.io/1"
 
@@ -356,6 +356,7 @@ hardFail = function (status, msg) -- forward declared
         setMessage("NO SERVICE", DEVICESID, devobj.id, 99)
         luup.variable_set(DEVICESID, "Message", "NO SERVICE", devobj.udn)
     end
+    postMessages()
     
     L({level=1,msg=msg})
 
@@ -445,12 +446,21 @@ local function getJSON(path, method, body)
     local today = math.floor(os.time() / 86400)
     if ntime ~= today then
         D("getJSON() call counter day changed, was %1 now %2, resetting counter", ntime, today)
+        L("Made %1 API calls in last 24 hours. Resetting counter now.", ncall)
         ncall = 1
         luup.variable_set(SYSSID, "DailyStamp", today, parent)
     end 
     D("getJSON() daily call counter now %1", ncall)
     luup.variable_set(SYSSID, "DailyCalls", ncall, parent)
 
+if debugMode then
+local f = io.open("/etc/cmh-ludl/RachioService.log", "a");
+if f then 
+f:write(string.format("%d %d %d %d %s\n", ncall, today, os.time(), 1, url)) 
+f:close() 
+end
+end
+    
     -- Make the request.
     local r = {}
     http.TIMEOUT = timeout -- N.B. http not https, regardless
@@ -1227,13 +1237,11 @@ local function ptick(p)
 
     local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
     
-    setMessage("Online", SYSSID, pdev, 0) -- default final message
-
     -- Fetch person data. In Rachio API, the direct person query reports
     -- everything, so do as much with that report as we can.
     local person = luup.variable_get(SYSSID, "PID", pdev) or ""
     if person == "" then
-        showServiceStatus("Online (identifying)", pdev)
+        showServiceStatus("Identifying...", pdev)
         local status,data = getJSON("/public/person/info")
         luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
         if status == HTTPREQ_AUTHFAIL then
@@ -1252,19 +1260,19 @@ local function ptick(p)
                 local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
                 cycleMult = math.ceil( 3600 / iv )
                 L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
-                showServiceStatus("Online (quota exceeded--delaying)", pdev)
+                showServiceStatus("Offline (quota exceeded--delaying)", pdev)
             else
                 -- Soft fail of some kind. Double poll interval and wait to retry.
                 L("Can't identify, invalid API response: %1", data)
                 if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-                showServiceStatus("Online (error--delaying)", pdev)
+                showServiceStatus("Offline (error--delaying)", pdev)
             end
         elseif data.id ~= nil and data.id ~= "" then
             -- Good!
             luup.variable_set(SYSSID, "PID", data.id, pdev)
             person = data.id
         else    
-            hardFail(status, "Offline (can't ident)")
+            hardFail(status, "Offline (no auth)")
         end
     end
 
@@ -1283,11 +1291,11 @@ local function ptick(p)
                     local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
                     cycleMult = math.ceil( 3600 / iv )
                     L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
-                    showServiceStatus("Online (quota exceeded--delaying)", pdev)
+                    showServiceStatus("Offline (quota exceeded--delaying)", pdev)
                 else
                     L("Full query, invalid API response: %1", data)
                     if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-                    showServiceStatus("Online (error--delaying)", pdev)
+                    showServiceStatus("Offline (error--delaying)", pdev)
                 end
             else
                 -- Good response. Do our device update.
@@ -1369,6 +1377,7 @@ function tick(stepStampCheck)
         updatePending = true -- don't allow other updates while we're working
         success,err = pcall( ptick, { pdev=pdev } )
         updatePending = false
+        D("tick() ptick returned %1,%2", success, err);
     end
     if success then
         -- No errors, schedule next event (unless stepStamp == -1, then it's a direct/special call)
@@ -1386,7 +1395,7 @@ function tick(stepStampCheck)
     -- Hard stop. The plugin will set pluginStatus if it has already trapped the
     -- the error and set up all of its messages, etc., so only react here if
     -- pluginStatus isn't set.
-    L("tick(): ptick() error: %1", err)
+    L("tick(): ptick() error: %1, aborting timer cycle.", err)
     if err == nil or err.pluginStatus == nil then
         -- We didn't stop because of a plugin problem, so issue our own
         -- plugin hardFail
