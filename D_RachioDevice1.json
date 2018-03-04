@@ -2,7 +2,7 @@
     "_comment": [
         "This file is part of the Rachio Plugin for Vera",
         "Copyright 2017 Patrick H. Rigney, All Rights Reserved",
-        "$Id: D_RachioDevice1.json 65 2017-08-16 21:52:39Z patrick $"
+        "$Id$"
     ],
     "default_icon": "http://www.toggledbits.com/rachio/assets/rachio-device-ok-60x60.png",
     "state_icons": [{
@@ -11,8 +11,7 @@
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "Status",
                 "operator": "!=",
-                "value": "ONLINE",
-                "subcategory_num": 0
+                "value": "ONLINE"
             }]
         },
         {
@@ -21,8 +20,7 @@
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "On",
                 "operator": "==",
-                "value": 0,
-                "subcategory_num": 0
+                "value": 0
             }]
         },
         {
@@ -31,8 +29,7 @@
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "Paused",
                 "operator": "!=",
-                "value": 0,
-                "subcategory_num": 0
+                "value": 0
             }]
         },
         {
@@ -41,8 +38,7 @@
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "Watering",
                 "operator": "==",
-                "value": 1,
-                "subcategory_num": 0
+                "value": 1
             }]
         }
     ],

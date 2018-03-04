@@ -1,0 +1,7 @@
+* text=auto
+
+*.json	text eol=lf ident
+*.js  	text eol=lf ident
+*.xml	text eol=lf ident
+*.lua	text eol=lf ident 
+*.md	text eol=lf 
