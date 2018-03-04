@@ -28,7 +28,7 @@ local _PLUGIN_VERSION = "1.2"
 local _PLUGIN_URL = "http://www.toggledbits.com/demii"
 local _CONFIGVERSION = 00106
 
-local debugMode = true
+local debugMode = false
 
 local API_BASE = "https://api.rach.io/1"
 
