@@ -450,17 +450,13 @@ local function getJSON(path, method, body)
         ncall = 1
         luup.variable_set(SYSSID, "DailyStamp", today, parent)
     end 
-    D("getJSON() daily call counter now %1", ncall)
     luup.variable_set(SYSSID, "DailyCalls", ncall, parent)
+    if ( ncall % 100 ) == 0 then
+        L("Milestone: %1 API calls made so far today.", ncall)
+    else
+        D("getJSON() daily call counter now %1", ncall)
+    end
 
-if debugMode then
-local f = io.open("/etc/cmh-ludl/RachioService.log", "a");
-if f then 
-f:write(string.format("%d %d %d %d %s\n", ncall, today, os.time(), 1, url)) 
-f:close() 
-end
-end
-    
     -- Make the request.
     local r = {}
     http.TIMEOUT = timeout -- N.B. http not https, regardless
@@ -1107,7 +1103,7 @@ local function runOnce(pdev)
         luup.variable_set(SYSSID, "CycleMult", "1", pdev)
         luup.variable_set(SYSSID, "LastUpdate", "0", pdev)
         luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
-        luup.variable_set(SYSTEM, "DailyStamp", "0", pdev)
+        luup.variable_set(SYSSID, "DailyStamp", "0", pdev)
         luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
         return
     end
@@ -1117,7 +1113,7 @@ local function runOnce(pdev)
         L("Upgrading configuration to 00106...")
         luup.variable_set(SYSSID, "PID", "", pdev)
         luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
-        luup.variable_set(SYSTEM, "DailyStamp", "0", pdev)
+        luup.variable_set(SYSSID, "DailyStamp", "0", pdev)
     end        
 
     -- Update version state var.
