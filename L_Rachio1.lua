@@ -23,7 +23,7 @@
 module("L_Rachio1", package.seeall)
 
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.3dev"
+local _PLUGIN_VERSION = "1.3"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 00107
 
@@ -479,6 +479,7 @@ local function getJSON(path, method, body)
         D("getJSON() daily call counter now %1", ncall)
     end
     
+    --[[
     if debugMode then
         local ff = io.open("/etc/cmh-ludl/RachioAPICalls.log", "a")
         if ff then
@@ -486,7 +487,8 @@ local function getJSON(path, method, body)
             ff:close()
         end
     end
-
+    --]]
+    
     -- Make the request.
     local r = {}
     http.TIMEOUT = timeout -- N.B. http not https, regardless
@@ -504,6 +506,7 @@ local function getJSON(path, method, body)
     respBody = table.concat(r)
     r = nil -- free that table memory?
     
+    --[[
     if debugMode then
         local ff = io.open("/etc/cmh-ludl/RachioAPICalls.log", "a")
         if ff then
@@ -512,6 +515,7 @@ local function getJSON(path, method, body)
             ff:close()
         end
     end
+    --]]
 
     -- See what happened.
     -- ??? Now that we're using a sink, respBody is always 1, so maybe revisit the tests below at some point (harmless now)
@@ -560,13 +564,16 @@ local function doSchedCheck( cdn, cd, serviceDev )
             
             --[[ 2018-03-13: Rachio has a bug with startDate since their latest API upgrade.
                              It returns an outlandish date. For ex, if I start watering today
-                             3/13, it will give me July 17 2017 as a start date. Since we also
-                             get zone start date, use that in preference.
+                             3/13, it will give me July 17 2017 as a start date for my acct/config.
+                             Since we also get zone start date, use that in preference.
             --]]
             local lastStart
             if watering == 0 then
-                -- broken see above: lastStart = math.floor( schedule.startDate / 1000 )
-                lastStart = math.floor( schedule.zoneStartDate / 1000 )
+                -- Check for broken lastStart, possible zoneStartDate alternate.
+                lastStart = math.floor( schedule.startDate / 1000 )
+                if ( os.time() - lastStart ) > 10800 then
+                    lastStart = math.floor( schedule.zoneStartDate / 1000 )
+                end
                 luup.variable_set( DEVICESID, "LastStart", lastStart, cdn )
             else
                 -- Schedule is still running; use our start marker 
