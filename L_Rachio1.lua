@@ -572,6 +572,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
                 -- Check for broken lastStart, possible zoneStartDate alternate.
                 lastStart = math.floor( schedule.startDate / 1000 )
                 if ( os.time() - lastStart ) > 10800 then
+                    L({level=2,msg="API returned schedule start >3 hours (%1); using fallback zone start."}, lastStart)
                     lastStart = math.floor( schedule.zoneStartDate / 1000 )
                 end
                 luup.variable_set( DEVICESID, "LastStart", lastStart, cdn )
@@ -590,7 +591,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
             local durMinutes = math.ceil( schedule.duration / 60 ) -- duration for entire schedule
             local runEnds = lastStart + schedule.duration
             local remaining = math.ceil( (runEnds - os.time()) / 60 )
-            if remaining < 1 then remaining = 1 end
+            if remaining < 1 then remaining = 0 end
             D("doSchedCheck: sched start %1 dur %2 ends %3 rem %4", lastStart, durMinutes, runEnds, remaining)
             luup.variable_set(DEVICESID, "RunEnds", runEnds, cdn)
             luup.variable_set(DEVICESID, "Duration", durMinutes, cdn)
@@ -608,7 +609,11 @@ local function doSchedCheck( cdn, cd, serviceDev )
                 luup.variable_set(SCHEDULESID, "Watering", 1, csn)
                 luup.variable_set(DEVICESID, "LastSchedule", csn, cdn)
                 luup.variable_set(DEVICESID, "LastScheduleName", schedule.type .. " " .. cs.description, cdn)
-                setMessage(formatMinutes(remaining), SCHEDULESID, csn, 20)
+                if remaining > 0 then
+                    setMessage(formatMinutes(remaining), SCHEDULESID, csn, 20)
+                else
+                    setMessage("Runtime indeterminate", SCHEDULESID, csn, 20)
+                end
             else
                 D("doSchedCheck() schedule %1 not a child--manual schedule?", schedule.scheduleId)
                 luup.variable_set(DEVICESID, "LastSchedule", "", cdn)
