@@ -47,7 +47,7 @@
             <defaultValue></defaultValue>
             <shortCode>message</shortCode>
         </stateVariable>
-        <stateVariable sendEvents="no">
+        <stateVariable sendEvents="yes">
             <name>Remaining</name>
             <dataType>ui4</dataType>
             <defaultValue>0</defaultValue>
