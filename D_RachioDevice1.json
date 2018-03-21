@@ -4,9 +4,9 @@
         "Copyright 2017 Patrick H. Rigney, All Rights Reserved",
         "$Id$"
     ],
-    "default_icon": "http://www.toggledbits.com/rachio/assets/rachio-device-ok-60x60.png",
+    "default_icon": "https://www.toggledbits.com/assets/rachio/rachio-device-ok-60x60.png",
     "state_icons": [{
-            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-attn-60x60.png",
+            "img": "https://www.toggledbits.com/assets/rachio/rachio-device-attn-60x60.png",
             "conditions": [{
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "Status",
@@ -15,7 +15,7 @@
             }]
         },
         {
-            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-disabled-60x60.png",
+            "img": "https://www.toggledbits.com/assets/rachio/rachio-device-disabled-60x60.png",
             "conditions": [{
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "On",
@@ -24,7 +24,7 @@
             }]
         },
         {
-            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-paused-60x60.png",
+            "img": "https://www.toggledbits.com/assets/rachio/rachio-device-paused-60x60.png",
             "conditions": [{
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "Paused",
@@ -33,7 +33,7 @@
             }]
         },
         {
-            "img": "http://www.toggledbits.com/rachio/assets/rachio-device-watering-60x60.png",
+            "img": "https://www.toggledbits.com/assets/rachio/rachio-device-watering-60x60.png",
             "conditions": [{
                 "service": "urn:toggledbits-com:serviceId:RachioDevice1",
                 "variable": "Watering",

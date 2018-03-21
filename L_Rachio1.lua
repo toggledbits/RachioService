@@ -1612,7 +1612,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
                     if watering ~= 0 then icon = "watering" end
                     table.insert( issinfo, issKeyVal("Status", watering) )
                     table.insert( issinfo, issKeyVal("pulseable", "0") )
-                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/rachio/assets/rachio-zone-" .. icon .. "-60x60.png" ) )
+                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/assets/rachio/rachio-zone-" .. icon .. "-60x60.png" ) )
                     local dev = { id=tostring(lnum), 
                         name=ldev.description or ("#" .. lnum), 
                         ["type"]="DevSwitch", 
@@ -1626,7 +1626,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
                     if watering ~= 0 then icon = "running" end
                     table.insert( issinfo, issKeyVal("Status", watering) )
                     table.insert( issinfo, issKeyVal("pulseable", "0") )
-                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/rachio/assets/rachio-schedule-" .. icon .. "-60x60.png" ) )
+                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/assets/rachio/rachio-schedule-" .. icon .. "-60x60.png" ) )
                     local dev = { id=tostring(lnum), 
                         name=ldev.description or ("#" .. lnum), 
                         ["type"]="DevSwitch", 

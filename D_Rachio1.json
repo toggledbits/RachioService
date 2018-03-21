@@ -4,9 +4,9 @@
         "Copyright 2017 Patrick H. Rigney, All Rights Reserved",
         "$Id$"
     ],
-    "default_icon": "http://www.toggledbits.com/rachio/assets/rachio-plugin-ok-60x60.png",
+    "default_icon": "https://www.toggledbits.com/assets/rachio/rachio-plugin-ok-60x60.png",
     "state_icons": [{
-            "img": "http://www.toggledbits.com/rachio/assets/rachio-plugin-ok-60x60.png",
+            "img": "https://www.toggledbits.com/assets/rachio/rachio-plugin-ok-60x60.png",
             "conditions": [{
                 "service": "urn:toggledbits-com:serviceId:Rachio1",
                 "variable": "ServiceCheck",
@@ -16,7 +16,7 @@
             }]
         },
         {
-            "img": "http://www.toggledbits.com/rachio/assets/rachio-plugin-attn-60x60.png",
+            "img": "https://www.toggledbits.com/assets/rachio/rachio-plugin-attn-60x60.png",
             "conditions": [{
                 "service": "urn:toggledbits-com:serviceId:Rachio1",
                 "variable": "ServiceCheck",
@@ -120,7 +120,7 @@
                     "ControlType": "label",
                     "Label": {
                         "lang_tag": "tb_rachiodevice_about",
-                        "text": "<a href=\"http://www.toggledbits.com/rachio/apikey.php\" target=\"_blank\">How to find your API key</a>"
+                        "text": "<a href=\"http://www.toggledbits.com/rachio\" target=\"_blank\">How to find your API key</a>"
                     },
                     "Display": {
                         "Top": 96,
