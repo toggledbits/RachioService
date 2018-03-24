@@ -24,11 +24,11 @@
 module("L_Rachio1", package.seeall)
 
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.4dev"
+local _PLUGIN_VERSION = "1.4"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 00107
 
-local debugMode = true
+local debugMode = false
 
 local API_BASE = "https://api.rach.io/1"
 
@@ -487,6 +487,7 @@ local function getJSON(path, method, body)
         D("getJSON() daily call counter now %1", ncall)
     end
     
+    --[[
     if debugMode then
         local ff = io.open("/etc/cmh-ludl/RachioAPICalls.log", "a")
         if ff then
@@ -494,6 +495,7 @@ local function getJSON(path, method, body)
             ff:close()
         end
     end
+    --]]
     
     -- Make the request.
     local r = {}
@@ -512,6 +514,7 @@ local function getJSON(path, method, body)
     respBody = table.concat(r)
     r = nil -- free that table memory?
     
+    --[[
     if debugMode then
         local ff = io.open("/etc/cmh-ludl/RachioAPICalls.log", "a")
         if ff then
@@ -520,6 +523,7 @@ local function getJSON(path, method, body)
             ff:close()
         end
     end
+    --]]
 
     -- See what happened.
     -- ??? Now that we're using a sink, respBody is always 1, so maybe revisit the tests below at some point (harmless now)
