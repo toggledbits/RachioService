@@ -1,4 +1,5 @@
--- -----------------------------------------------------------------------------
+--luacheck: std lua51,module,read globals luup,ignore 542 611 612 614 111/_,no max line length
+-- ----------------------------------------------------------------------------
 --
 -- L_Rachio1.lua
 -- Rachio Plug-in for Vera implementation module
@@ -7,7 +8,7 @@
 --
 -- $Id$
 --
--- -----------------------------------------------------------------------------
+-- ----------------------------------------------------------------------------
 --
 -- TO-DO:
 --   Flex schedules need separate D_.json file without skip/start (they can't do those).
@@ -23,7 +24,7 @@
 module("L_Rachio1", package.seeall)
 
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.3"
+local _PLUGIN_VERSION = "1.4"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 00107
 
@@ -70,6 +71,7 @@ local http = require("socket.http")
 local ltn12 = require("ltn12")
 local json = require('dkjson')
 if json == nil then json = require("json") end
+-- Our total inability to find a json module is handled in start
 
 local rateTab = nil     -- to track API rate limiting
 local rateDiv = 5       -- granularity (seconds)
@@ -147,6 +149,12 @@ end
 local function choose( ix, dflt, ...)
     if ix < 1 or ix > #arg then return dflt end
     return arg[ix]
+end
+
+local function iif( b, t, f )
+    assert(type(b) == "boolean") -- enforce
+    if b then return t end
+    return f
 end
 
 -- Take a string and split it around sep, returning table (indexed) of substrings
@@ -560,7 +568,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
         if schedule.type ~= nil then
             -- ??? check zone ID, make sure it's zone we know
             -- ??? what does multiple zone schedule report?
-            D("doSchedCheck() handling %1 schedule", schedule.type)
+            D("doSchedCheck() handling %1 schedule, watering=%2", schedule.type, watering)
             
             --[[ 2018-03-13: Rachio has a bug with startDate since their latest API upgrade.
                              It returns an outlandish date. For ex, if I start watering today
@@ -571,6 +579,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
             if watering == 0 then
                 -- Check for broken lastStart, possible zoneStartDate alternate.
                 lastStart = math.floor( schedule.startDate / 1000 )
+                D("doSchedStart() start of watering, schedule reports start %1", lastStart)
                 if ( os.time() - lastStart ) > 10800 then
                     L({level=2,msg="API returned schedule start >3 hours (%1); using fallback zone start."}, lastStart)
                     lastStart = math.floor( schedule.zoneStartDate / 1000 )
@@ -579,6 +588,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
             else
                 -- Schedule is still running; use our start marker 
                 lastStart = getVarNumeric( DEVICESID, "LastStart", os.time(), cdn )
+                D("doSchedStart() watering continues from lastStart=%1", lastStart)
             end
 
             schedRunning = true
@@ -593,10 +603,6 @@ local function doSchedCheck( cdn, cd, serviceDev )
             local remaining = math.ceil( (runEnds - os.time()) / 60 )
             if remaining < 1 then remaining = 0 end
             D("doSchedCheck: sched start %1 dur %2 ends %3 rem %4", lastStart, durMinutes, runEnds, remaining)
-            luup.variable_set(DEVICESID, "RunEnds", runEnds, cdn)
-            luup.variable_set(DEVICESID, "Duration", durMinutes, cdn)
-            luup.variable_set(DEVICESID, "Remaining", remaining, cdn)
-            luup.variable_set(DEVICESID, "Watering", 1, cdn)
             -- Now apply to schedule if known device (e.g. not a manual schedule, for which we would not have a device)
             local csn, cs = findChildByUID( serviceDev, schedule.scheduleRuleId )
             if csn ~= nil then
@@ -619,6 +625,11 @@ local function doSchedCheck( cdn, cd, serviceDev )
                 luup.variable_set(DEVICESID, "LastSchedule", "", cdn)
                 luup.variable_set(DEVICESID, "LastScheduleName", schedule.type, cdn)
             end
+            luup.variable_set(DEVICESID, "RunEnds", runEnds, cdn)
+            luup.variable_set(DEVICESID, "Duration", durMinutes, cdn)
+            luup.variable_set(DEVICESID, "Remaining", remaining, cdn)
+            luup.variable_set(DEVICESID, "Watering", 1, cdn)
+
             setMessage(schedMessage, DEVICESID, cdn, 20)
 
             -- Reset stats for (all) zones
@@ -658,6 +669,16 @@ local function doSchedCheck( cdn, cd, serviceDev )
             D("doSchedCheck() schedule ended")
             luup.variable_set(DEVICESID, "Remaining", 0, cdn)
             luup.variable_set(DEVICESID, "Watering", 0, cdn)
+            local msg = "Enabled"
+            local schedMsg
+            if getVarNumeric( DEVICESID, "On", 0, cdn ) == 0 then
+                msg = "Standby"
+                schedMsg = "Suspended"
+            elseif getVarNumeric( DEVICESID, "Paused", 0, cdn ) ~= 0 then
+                msg = "Paused"
+                schedMsg = "Suspended"
+            end
+            setMessage( msg, DEVICESID, cdn, 20 )
             
             -- Mark zones idle
             local children = findChildrenByType( serviceDev, ZONETYPE )
@@ -668,6 +689,8 @@ local function doSchedCheck( cdn, cd, serviceDev )
                     D("doSchedCheck() setting idle zone info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
                     luup.variable_set(ZONESID, "Remaining", 0, czn)
                     luup.variable_set(ZONESID, "Watering", 0, czn)
+                    setMessage( iif( getVarNumeric( ZONESID, "Enabled", 1, czn ) ~= 0, "Enabled", "Disabled" ),
+                            ZONESID, czn, 0 )
                 end
             end
             
@@ -680,6 +703,11 @@ local function doSchedCheck( cdn, cd, serviceDev )
                     D("doSchedCheck() setting idle schedule info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
                     luup.variable_set(SCHEDULESID, "Remaining", 0, czn)
                     luup.variable_set(SCHEDULESID, "Watering", 0, czn)
+                    setMessage( iif( getVarNumeric( SCHEDULESID, "Enabled", 1, czn ) ~= 0, "Enabled", "Disabled" ),
+                            SCHEDULESID, czn, 0 )
+                    if schedMsg ~= nil then
+                        setMessage( schedMsg, SCHEDULESID, czn, 20 )
+                    end
                 end
             end
         else
@@ -796,6 +824,7 @@ local function doDeviceUpdate( data, serviceDev )
                     luup.variable_set(SCHEDULESID, "Summary", z.summary or "", csn)
                     luup.variable_set(SCHEDULESID, "RainDelay", z.rainDelay or "0", csn)
                     luup.variable_set(SCHEDULESID, "Type", z.type or "FIXED", csn)
+                    luup.variable_set(SCHEDULESID, "Duration", z.totalDuration or "", csn)
                     luup.variable_set(DEVICESID, "ParentDevice", cdn, csn) -- yes, DEVICESID, really
                     luup.attr_set("invisible", tostring(localHide), csn)
                 else
@@ -1044,7 +1073,6 @@ function rachioStartMultiZone( devnum, zoneData )
         local status,resp = getJSON("/public/zone/start_multiple", "PUT", req)
         D("rachioStartMultiZone() getJSON returned %1,%2", status,resp)
         if status == HTTPREQ_OK then
-            luup.variable_set( DEVICESID, "Watering", 1, devnum )
             schedRunning = true
             forceUpdate(devnum)
             return true
@@ -1068,7 +1096,6 @@ function rachioStartZone( devnum, durMinutes )
     D("rachioStartZone() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
-        luup.variable_set( DEVICESID, "Watering", 1, controller )
         schedRunning = true
         forceUpdate(controller)
         return true
@@ -1086,7 +1113,6 @@ function rachioRunSchedule( devnum )
     D("rachioRunSchedule() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
-        luup.variable_set( DEVICESID, "Watering", 1, controller )
         schedRunning = true
         forceUpdate(controller)
         return true
@@ -1095,7 +1121,7 @@ function rachioRunSchedule( devnum )
 end
 
 -- Tell Rachio to skip a schedule
-function rachioSkipSchedule( devnum )
+function rachioskipschedule( devnum )
     D("rachioSkipSchedule(%1)", devnum)
 
     local d = luup.devices[ devnum ]
@@ -1337,6 +1363,9 @@ local function ptick(p)
     local now = os.time()
     local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
     
+    -- Set schedRunning flag to false. Any controller running a schedule will set it.
+    schedRunning = false
+
     -- Fetch person data. In Rachio API, the direct person query reports
     -- everything, so do as much with that report as we can.
     local person = luup.variable_get(SYSSID, "PID", pdev) or ""
@@ -1393,7 +1422,7 @@ local function ptick(p)
                     L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
                     showServiceStatus("Offline (quota exceeded--delaying)", pdev)
                 else
-                    L("Full query, invalid API response: %1", data)
+                    L({level=2,msg="Full query, invalid API response: %1"}, data)
                     if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
                     showServiceStatus("Offline (error--delaying)", pdev)
                 end
@@ -1416,11 +1445,10 @@ local function ptick(p)
         -- Each interval, we do a schedule check on each controller.
         -- N.B. Schedule check for each devices is one query per...
         if not problem then
-            -- Set schedRunning flag to false. Any controller running a schedule will set it.
-            schedRunning = false
             -- Check schedule on each controller
             local devices = findChildrenByType( pdev, DEVICETYPE )
             for _,d in pairs(devices) do 
+                D("ptick() doing schedule check on %1 (%2)", d, luup.devices[d].description)
                 if not doSchedCheck( d, nil, pdev ) then 
                     problem = true
                     break 
@@ -1493,7 +1521,7 @@ function tick(stepStampCheck)
             local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
             local nextCycleDelay = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
             if schedRunning then 
-                nextCycleDelay = getVarNumeric(SYSSID, "ActiveInterval", 60, pdev)
+                nextCycleDelay = getVarNumeric(SYSSID, "ActiveInterval", 30, pdev)
             end
             nextCycleDelay = nextCycleDelay * cycleMult
             if nextCycleDelay < 1 then nextCycleDelay = 60 
@@ -1515,7 +1543,7 @@ function tick(stepStampCheck)
     end
 end
 
-function setTraceMode( devnum, newState )
+function actionSetDebug( devnum, newState )
     -- Sets debug only; no trace in production/released code.
     debugMode = (type(newState)=="number" and newState ~= 0) or newState == "1" or tostring(newState) == "true"
     D("setTraceMode() debug mode for %2 is now %1", debugMode, devnum)
@@ -1529,7 +1557,7 @@ local function issKeyVal( k, v, s )
 end
 
 local function getDevice( dev, pdev, v )
-    local dkjson = require("dkjson")
+    local dkjson = json or require("dkjson")
     if v == nil then v = luup.devices[dev] end
     local devinfo = { 
           devNum=dev
@@ -1562,12 +1590,12 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
     local deviceNum = tonumber( lul_parameters['device'], 10 ) or luup.device
     if action == "debug" then
         local err,msg,job,args = luup.call_action( SYSSID, "SetDebug", { debug=1 }, deviceNum )
-        return string.format("Device #%s result: %s, %s, %s, %s", tostring(deviceNum), tostring(err), tostring(msg), tostring(job), dump(args))
+        return string.format("Device #%s result: %s, %s, %s, %s", tostring(deviceNum), tostring(err), tostring(msg), tostring(job), dump(args)), "text/plain"
     end
 
     if action:sub( 1, 3 ) == "ISS" then
         -- ImperiHome ISS Standard System API, see http://dev.evertygo.com/api/iss#types
-        local dkjson = require('dkjson')
+        local dkjson = json or require('dkjson')
         local path = lul_parameters['path'] or action:sub( 4 ) -- Work even if I'home user forgets &path=
         if path == "/system" then
             return dkjson.encode( { id="AutoVirtualThermostat-" .. luup.pk_accesspoint, apiversion=1 } ), "application/json"
@@ -1583,12 +1611,12 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
                 -- ??? Can we figure out DevRain?
                 if ldev.device_type == ZONETYPE then
                     local issinfo = {}
-                    local z = luup.variable_get( ZONESID, "Watering", lnum ) or "0"
+                    local watering = getVarNumeric( ZONESID, "Watering", 0, lnum )
                     local icon = "ok"
-                    if z == "1" then icon = "watering" end
-                    table.insert( issinfo, issKeyVal("Status", z) )
+                    if watering ~= 0 then icon = "watering" end
+                    table.insert( issinfo, issKeyVal("Status", watering) )
                     table.insert( issinfo, issKeyVal("pulseable", "0") )
-                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/rachio/assets/rachio-zone-" .. icon .. "-60x60.png" ) )
+                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/assets/rachio/rachio-zone-" .. icon .. "-60x60.png" ) )
                     local dev = { id=tostring(lnum), 
                         name=ldev.description or ("#" .. lnum), 
                         ["type"]="DevSwitch", 
@@ -1597,12 +1625,12 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
                     table.insert( devices, dev )
                 elseif ldev.device_type == SCHEDULETYPE then
                     local issinfo = {}
-                    local z = luup.variable_get( SCHEDULESID, "Watering", lnum ) or "0"
+                    local watering = getVarNumeric( SCHEDULESID, "Watering", 0, lnum )
                     local icon = "ok"
-                    if z == "1" then icon = "running" end
-                    table.insert( issinfo, issKeyVal("Status", z) )
+                    if watering ~= 0 then icon = "running" end
+                    table.insert( issinfo, issKeyVal("Status", watering) )
                     table.insert( issinfo, issKeyVal("pulseable", "0") )
-                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/rachio/assets/rachio-schedule-" .. icon .. "-60x60.png" ) )
+                    table.insert( issinfo, issKeyVal("defaultIcon", "https://www.toggledbits.com/assets/rachio/rachio-schedule-" .. icon .. "-60x60.png" ) )
                     local dev = { id=tostring(lnum), 
                         name=ldev.description or ("#" .. lnum), 
                         ["type"]="DevSwitch", 
@@ -1650,7 +1678,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
     end
     
     if action == "status" then
-        local dkjson = require("dkjson")
+        local dkjson = json or require("dkjson")
         if dkjson == nil then return "Missing dkjson library", "text/plain" end
         local st = {
             name=_PLUGIN_NAME,
