@@ -23,8 +23,9 @@
 
 module("L_Rachio1", package.seeall)
 
+local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.4"
+local _PLUGIN_VERSION = "1.5develop"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 00107
 
@@ -43,6 +44,8 @@ local ZONETYPE = "urn:schemas-toggledbits-com:device:RachioZone:1"
 
 local SCHEDULESID = "urn:toggledbits-com:serviceId:RachioSchedule1"
 local SCHEDULETYPE = "urn:schemas-toggledbits-com:device:RachioSchedule:1"
+
+local SWITCHSID = "urn:upnp-org:serviceId:SwitchPower1"
 
 local HTTPREQ_OK = 0
 local HTTPREQ_AUTHFAIL = 1
@@ -78,6 +81,7 @@ local rateDiv = 5       -- granularity (seconds)
 local rateMax = 15      -- max per-minute rate allowed
 
 local hardFail
+local childrenByUID = {}
 
 local function formatMinutes( m )
     local h
@@ -149,12 +153,6 @@ end
 local function choose( ix, dflt, ...)
     if ix < 1 or ix > #arg then return dflt end
     return arg[ix]
-end
-
-local function iif( b, t, f )
-    assert(type(b) == "boolean") -- enforce
-    if b then return t end
-    return f
 end
 
 local function split( str, sep )
@@ -306,8 +304,10 @@ end
 -- Find a child by Rachio's ID (UID)
 local function findChildByUID( parentId, uid )
   if uid == nil then return nil end
+  if childrenByUID[uid] ~= nil then return childrenByUID[uid], luup.devices[childrenByUID[uid]] end
   for k,v in pairs(luup.devices) do
     if v.device_num_parent == parentId and uid == v.id then
+        childrenByUID[uid] = k
         return k,v
     end
   end
@@ -598,6 +598,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
                 luup.variable_set(SCHEDULESID, "Duration", durMinutes, csn)
                 luup.variable_set(SCHEDULESID, "Remaining", remaining, csn)
                 luup.variable_set(SCHEDULESID, "Watering", 1, csn)
+                luup.variable_set(SWITCHSID, "Status", 1, csn)
                 luup.variable_set(DEVICESID, "LastSchedule", csn, cdn)
                 luup.variable_set(DEVICESID, "LastScheduleName", schedule.type .. " " .. cs.description, cdn)
                 if remaining > 0 then
@@ -614,7 +615,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
             luup.variable_set(DEVICESID, "Duration", durMinutes, cdn)
             luup.variable_set(DEVICESID, "Remaining", remaining, cdn)
             luup.variable_set(DEVICESID, "Watering", 1, cdn)
-
+            
             setMessage(schedMessage, DEVICESID, cdn, 20)
 
             -- Reset stats for (all) zones
@@ -635,6 +636,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
                         luup.variable_set(ZONESID, "Duration", durMinutes, czn)
                         luup.variable_set(ZONESID, "Remaining", remaining, czn)
                         luup.variable_set(ZONESID, "Watering", 1, czn)
+                        luup.variable_set(SWITCHSID, "Status", 1, czn)
                         if cs ~= nil then
                             luup.variable_set(ZONESID, "LastSchedule", csn, czn)
                             luup.variable_set(ZONESID, "LastScheduleName", schedule.type .. " " .. cs.description, czn)
@@ -646,6 +648,8 @@ local function doSchedCheck( cdn, cd, serviceDev )
                     else
                         luup.variable_set(ZONESID, "Remaining", 0, czn)
                         luup.variable_set(ZONESID, "Watering", 0, czn)
+                        luup.variable_set(SWITCHSID, "Target", 0, czn)
+                        luup.variable_set(SWITCHSID, "Status", 0, czn)
                     end
                 end
             end
@@ -674,7 +678,9 @@ local function doSchedCheck( cdn, cd, serviceDev )
                     D("doSchedCheck() setting idle zone info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
                     luup.variable_set(ZONESID, "Remaining", 0, czn)
                     luup.variable_set(ZONESID, "Watering", 0, czn)
-                    setMessage( iif( getVarNumeric( ZONESID, "Enabled", 1, czn ) ~= 0, "Enabled", "Disabled" ),
+                    luup.variable_set(SWITCHSID, "Target", 0, czn)
+                    luup.variable_set(SWITCHSID, "Status", 0, czn)
+                    setMessage( ( getVarNumeric( ZONESID, "Enabled", 1, czn ) ~= 0 ) and "Enabled" or "Disabled",
                             ZONESID, czn, 0 )
                 end
             end
@@ -688,7 +694,9 @@ local function doSchedCheck( cdn, cd, serviceDev )
                     D("doSchedCheck() setting idle schedule info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
                     luup.variable_set(SCHEDULESID, "Remaining", 0, czn)
                     luup.variable_set(SCHEDULESID, "Watering", 0, czn)
-                    setMessage( iif( getVarNumeric( SCHEDULESID, "Enabled", 1, czn ) ~= 0, "Enabled", "Disabled" ),
+                    luup.variable_set(SWITCHSID, "Target", 0, czn)
+                    luup.variable_set(SWITCHSID, "Status", 0, czn)
+                    setMessage( ( getVarNumeric( SCHEDULESID, "Enabled", 1, czn ) ~= 0 ) and "Enabled" or "Disabled",
                             SCHEDULESID, czn, 0 )
                     if schedMsg ~= nil then
                         setMessage( schedMsg, SCHEDULESID, czn, 20 )
@@ -860,6 +868,9 @@ local function setUpDevices(data, serviceDev)
             -- New device
             changes = changes + 1
             D("setUpDevices() adding child for device " .. tostring(v.id))
+        else
+            luup.attr_set( "category_num", 1, cdn )
+            luup.attr_set( "subcategory_num", 0, cdn )
         end
 
         -- Always append child (embedded) device. Pass UID as id (string 3), and also initialize UID service variable.
@@ -877,6 +888,9 @@ local function setUpDevices(data, serviceDev)
                 -- New zone
                 changes = changes + 1
                 D("setUpDevices() adding child device for zone " .. z.id .. " number " .. z.zoneNumber .. " " .. z.name)
+            else
+                luup.attr_set( "category_num", 3, czn )
+                luup.attr_set( "subcategory_num", 7, czn )
             end
 
             -- Always append child device. Pass UID as id (string 3), and also initialize UID service variable.
@@ -896,6 +910,9 @@ local function setUpDevices(data, serviceDev)
                 -- New schedule
                 changes = changes + 1
                 D("setUpDevices() adding child for schedule %1", z.id)
+            else
+                luup.attr_set( "category_num", 3, csn )
+                luup.attr_set( "subcategory_num", 7, csn )
             end
 
             luup.chdev.append( serviceDev, ptr, z.id, z.name, "", "D_RachioSchedule1.xml", "", SYSSID .. ",RachioID=" .. z.id, true )
@@ -1081,6 +1098,7 @@ function rachioStartZone( devnum, durMinutes )
     D("rachioStartZone() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
+        luup.variable_set(SWITCHSID, "Target", 1, devnum)
         schedRunning = true
         forceUpdate(controller)
         return true
@@ -1098,6 +1116,7 @@ function rachioRunSchedule( devnum )
     D("rachioRunSchedule() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
         local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
+        luup.variable_set(SWITCHSID, "Target", 1, devnum)
         schedRunning = true
         forceUpdate(controller)
         return true
@@ -1106,7 +1125,7 @@ function rachioRunSchedule( devnum )
 end
 
 -- Tell Rachio to skip a schedule
-function rachioskipschedule( devnum )
+function rachioSkipSchedule( devnum )
     D("rachioSkipSchedule(%1)", devnum)
 
     local d = luup.devices[ devnum ]
@@ -1117,6 +1136,20 @@ function rachioskipschedule( devnum )
         return true
     end
     return false
+end
+
+-- Switch Status
+function rachioSwitchSetTarget( devnum, newtarget )
+    if luup.devices[devnum] == nil then return end
+    newtarget = tonumber(newtarget) or 0
+    if newtarget == 0 then
+        local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
+        rachioDeviceStop( controller )
+    elseif luup.devices[devnum].device_type == ZONETYPE then
+        rachioStartZone( devnum, 3 )
+    elseif luup.devices[devnum].device_type == SCHEDULETYPE then
+        rachioRunSchedule( devnum )
+    end
 end
 
 function rachioSetDebug( devnum, enable )
