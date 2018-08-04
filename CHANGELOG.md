@@ -2,7 +2,7 @@
 
 ## Version 1.5 (develop branch) ##
 
-* Force category/subcategory to switch/valve for zones and schedules.
+* Force category/subcategory to switch/valve for zones and schedules. Having it set in the device file doesn't seem to be sufficient.
 * Implement SwitchPower1 service (rudimentary) for zones and schedules (supports category/sub).
 
 ## Version 1.4 (released) ##
