@@ -145,10 +145,11 @@
         <action>
             <serviceId>urn:upnp-org:serviceId:SwitchPower1</serviceId>
             <name>SetTarget</name>
-            <run>
+            <job>
                 -- Water valves (zones and schedules) are also supported as switches.
                 rachio.rachioSwitchSetTarget( lul_device, lul_settings.newTargetValue )
-            </run>
+                return 4,0
+            </job>
         </action>
     </actionList>
 </implementation>
