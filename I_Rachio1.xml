@@ -74,6 +74,7 @@
                 if rachio.rachioDeviceOn( lul_device ) then
                     luup.variable_set("urn:toggledbits-com:serviceId:RachioDevice1", "On", "1", lul_device)
                 end
+                return 4,0
             </job>
         </action>
         <action>
@@ -83,6 +84,7 @@
                 if rachio.rachioDeviceOff( lul_device ) then
                     luup.variable_set("urn:toggledbits-com:serviceId:RachioDevice1", "On", "0", lul_device)
                 end
+                return 4,0
             </job>
         </action>
         <action>
@@ -90,6 +92,7 @@
             <name>DeviceStop</name>
             <job>
                 rachio.rachioDeviceStop( lul_device )
+                return 4,0
             </job>
         </action>
         <action>
@@ -97,6 +100,7 @@
             <name>StartMultiZone</name>
             <job>
                 rachio.rachioStartMultiZone( lul_device, lul_settings.zoneData )
+                return 4,0
             </job>
         </action>
         <action>
@@ -104,6 +108,7 @@
             <name>StartZone</name>
             <job>
                 rachio.rachioStartZone( lul_device, lul_settings.durationMinutes )
+                return 4,0
             </job>
         </action>
         <action>
@@ -111,6 +116,7 @@
             <name>RunSchedule</name>
             <job>
                 rachio.rachioRunSchedule( lul_device )
+                return 4,0
             </job>
         </action>
         <action>
@@ -118,6 +124,7 @@
             <name>SkipSchedule</name>
             <job>
                 rachio.rachioSkipSchedule( lul_device )
+                return 4,0
             </job>
         </action>
         <action>
