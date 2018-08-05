@@ -26,31 +26,31 @@
             }]
         }
     ],
-    "x": "2",
-    "y": "4",
-    "inScene": "0",
+    "x": 2,
+    "y": 4,
+    "inScene": 0,
     "Tabs": [{
             "Label": {
                 "lang_tag": "tabname_control",
                 "text": "Settings"
             },
-            "Position": "0",
+            "Position": 0,
             "TabType": "flash",
             "top_navigation_tab": 1,
             "ControlGroup": [{
-                "id": "1",
-                "isSingle": "1",
-                "scenegroup": "1"
+                "id": 1,
+                "isSingle": 1,
+                "scenegroup": 1
             }],
             "SceneGroup": [{
-                "id": "1",
+                "id": 1,
                 "top": "0.5",
-                "left": "0",
-                "x": "2",
-                "y": "3"
+                "left": 0,
+                "x": 2,
+                "y": 3
             }],
             "Control": [{
-                    "ControlGroup": "1",
+                    "ControlGroup": 1,
                     "ControlType": "variable",
                     "Display": {
                         "Service": "urn:toggledbits-com:serviceId:Rachio1",
@@ -158,13 +158,13 @@
                 },
                 {
                     "ControlType": "multi_state_button",
-                    "top": "0",
-                    "left": "1",
+                    "top": 0,
+                    "left": 1,
                     "Display": {
-                        "Top": "152",
-                        "Left": "128",
-                        "Width": "96",
-                        "Height": "48"
+                        "Top": 152,
+                        "Left": 128,
+                        "Width": 96,
+                        "Height": 48
                     },
                     "states": [{
                         "Label": {
@@ -174,14 +174,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideZones",
-                            "Value": "1"
+                            "Value": 1
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideZones",
                             "Parameters": [{
                                 "Name": "newHideValue",
-                                "Value": "1"
+                                "Value": 1
                             }]
                         },
                         "ControlCode": "zoneshide"
@@ -193,14 +193,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideZones",
-                            "Value": "0"
+                            "Value": 0
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideZones",
                             "Parameters": [{
                                 "Name": "newHideValue",
-                                "Value": "0"
+                                "Value": 0
                             }]
                         },
                         "ControlCode": "zonesshow"
@@ -222,13 +222,13 @@
                 },
                 {
                     "ControlType": "multi_state_button",
-                    "top": "0",
-                    "left": "1",
+                    "top": 0,
+                    "left": 1,
                     "Display": {
-                        "Top": "152",
-                        "Left": "352",
-                        "Width": "96",
-                        "Height": "48"
+                        "Top": 152,
+                        "Left": 352,
+                        "Width": 96,
+                        "Height": 48
                     },
                     "states": [{
                         "Label": {
@@ -238,14 +238,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideSchedules",
-                            "Value": "1"
+                            "Value": 1
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideSchedules",
                             "Parameters": [{
                                 "Name": "newHideValue",
-                                "Value": "1"
+                                "Value": 1
                             }]
                         },
                         "ControlCode": "scheduleshide"
@@ -257,14 +257,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideSchedules",
-                            "Value": "0"
+                            "Value": 0
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideSchedules",
                             "Parameters": [{
                                 "Name": "newHideValue",
-                                "Value": "0"
+                                "Value": 0
                             }]
                         },
                         "ControlCode": "schedulesshow"
@@ -286,13 +286,13 @@
                 },
                 {
                     "ControlType": "multi_state_button",
-                    "top": "0",
-                    "left": "1",
+                    "top": 0,
+                    "left": 1,
                     "Display": {
-                        "Top": "200",
-                        "Left": "128",
-                        "Width": "96",
-                        "Height": "48"
+                        "Top": 200,
+                        "Left": 128,
+                        "Width": 96,
+                        "Height": 48
                     },
                     "states": [{
                         "Label": {
@@ -302,14 +302,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideDisabledZones",
-                            "Value": "1"
+                            "Value": 1
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideZones",
                             "Parameters": [{
                                 "Name": "newHideDisabledValue",
-                                "Value": "1"
+                                "Value": 1
                             }]
                         },
                         "ControlCode": "disabledzoneshide"
@@ -321,14 +321,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideDisabledZones",
-                            "Value": "0"
+                            "Value": 0
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideZones",
                             "Parameters": [{
                                 "Name": "newHideDisabledValue",
-                                "Value": "0"
+                                "Value": 0
                             }]
                         },
                         "ControlCode": "disabledzonesshow"
@@ -350,13 +350,13 @@
                 },
                 {
                     "ControlType": "multi_state_button",
-                    "top": "0",
-                    "left": "1",
+                    "top": 0,
+                    "left": 1,
                     "Display": {
-                        "Top": "200",
-                        "Left": "352",
-                        "Width": "96",
-                        "Height": "48"
+                        "Top": 200,
+                        "Left": 352,
+                        "Width": 96,
+                        "Height": 48
                     },
                     "states": [{
                         "Label": {
@@ -366,14 +366,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideDisabledSchedules",
-                            "Value": "1"
+                            "Value": 1
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideSchedules",
                             "Parameters": [{
                                 "Name": "newHideDisabledValue",
-                                "Value": "1"
+                                "Value": 1
                             }]
                         },
                         "ControlCode": "disabledscheduleshide"
@@ -385,14 +385,14 @@
                         "Display": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Variable": "HideDisabledSchedules",
-                            "Value": "0"
+                            "Value": 0
                         },
                         "Command": {
                             "Service": "urn:toggledbits-com:serviceId:Rachio1",
                             "Action": "SetHideSchedules",
                             "Parameters": [{
                                 "Name": "newHideDisabledValue",
-                                "Value": "0"
+                                "Value": 0
                             }]
                         },
                         "ControlCode": "disabledschedulesshow"
@@ -400,7 +400,7 @@
                 },
                 {
                     "ControlType": "button",
-                    "HorizontalMultiplier": "3",
+                    "HorizontalMultiplier": 3,
                     "Label": {
                         "lang_tag": "cmd_reset",
                         "text": "Reset Service"
@@ -452,7 +452,7 @@
                 "lang_tag": "advanced",
                 "text": "Advanced"
             },
-            "Position": "1",
+            "Position": 1,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "advanced_device"
@@ -462,7 +462,7 @@
                 "lang_tag": "logs",
                 "text": "Logs"
             },
-            "Position": "2",
+            "Position": 2,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "device_logs"
@@ -472,7 +472,7 @@
                 "lang_tag": "notifications",
                 "text": "Notifications"
             },
-            "Position": "3",
+            "Position": 3,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "device_notifications"
@@ -482,7 +482,7 @@
                 "lang_tag": "device_scenes",
                 "text": "Scenes"
             },
-            "Position": "4",
+            "Position": 4,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "device_scenes"
@@ -497,7 +497,7 @@
             "serviceId": "urn:toggledbits-com:serviceId:Rachio1",
             "serviceStateTable": {
                 "ServiceCheck": {
-                    "value": "0",
+                    "value": 0,
                     "comparisson": "="
                 }
             }
@@ -511,7 +511,7 @@
             "serviceId": "urn:toggledbits-com:serviceId:Rachio1",
             "serviceStateTable": {
                 "On": {
-                    "value": "0",
+                    "value": 0,
                     "comparisson": ">"
                 }
             }

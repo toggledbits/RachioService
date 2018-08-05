@@ -11,8 +11,7 @@
                 "service": "urn:toggledbits-com:serviceId:RachioZone1",
                 "variable": "Enabled",
                 "operator": "==",
-                "value": 0,
-                "subcategory_num": 0
+                "value": "0"
             }]
         },
         {
@@ -21,41 +20,40 @@
                 "service": "urn:toggledbits-com:serviceId:RachioZone1",
                 "variable": "Watering",
                 "operator": "==",
-                "value": 1,
-                "subcategory_num": 0
+                "value": "1"
             }]
         }
     ],
-    "x": "2",
-    "y": "4",
-    "iconText": "1",
-    "inScene": "1",
+    "x": 2,
+    "y": 4,
+    "iconText": 1,
+    "inScene": 1,
     "Tabs": [{
             "Label": {
                 "lang_tag": "tabname_control",
                 "text": "Control"
             },
-            "Position": "0",
+            "Position": 0,
             "TabType": "flash",
             "top_navigation_tab": 1,
             "ControlGroup": [{
-                "id": "1",
-                "isSingle": "1",
-                "scenegroup": "1"
+                "id": 1,
+                "isSingle": 1,
+                "scenegroup": 1
             }],
             "SceneGroup": [{
-                "id": "1",
-                "top": "0.5",
-                "left": "0",
-                "x": "4",
-                "y": "2.5"
+                "id": 1,
+                "top": 0.5,
+                "left": 0,
+                "x": 4,
+                "y": 2.5
             }],
             "Control": [{
-                    "ControlGroup": "1",
+                    "ControlGroup": 1,
                     "ControlType": "slider",
-                    "top": "0",
-                    "left": "0",
-                    "HorizontalMultiplier": "2.0",
+                    "top": 0,
+                    "left": 0,
+                    "HorizontalMultiplier": 2.0,
                     "Label": {
                         "lang_tag": "tb_waterslider",
                         "text": "Remaining"
@@ -67,7 +65,7 @@
                     },
                     "LabelMax": {
                         "lang_tag": "tb_rachio_label_max",
-                        "text": "180"
+                        "text": 180
                     },
                     "LabelSymbol": {
                         "lang_tag": "tb_rachio_label_minutes",
@@ -76,13 +74,13 @@
                     "Display": {
                         "Service": "urn:toggledbits-com:serviceId:RachioZone1",
                         "Variable": "Remaining",
-                        "MinValue": "0",
-                        "MaxValue": "180",
+                        "MinValue": 0,
+                        "MaxValue": 180,
                         "ID": "durationMinutes",
-                        "Top": "32",
-                        "Left": "8",
-                        "Width": "340",
-                        "Height": "25"
+                        "Top": 32,
+                        "Left": 8,
+                        "Width": 340,
+                        "Height": 25
                     },
                     "Command": {
                         "Service": "urn:toggledbits-com:serviceId:RachioZone1",
@@ -96,17 +94,17 @@
                 },
                 {
                     "ControlType": "label",
-                    "top": "0",
-                    "left": "0",
+                    "top": 0,
+                    "left": 0,
                     "Label": {
                         "lang_tag": "tb_rachiozone_dur_label",
                         "text": "Start/Set Manual Duration"
                     },
                     "Display": {
-                        "Top": "64",
-                        "Left": "8",
-                        "Width": "240",
-                        "Height": "24"
+                        "Top": 64,
+                        "Left": 8,
+                        "Width": 240,
+                        "Height": 24
                     }
                 }
             ]
@@ -116,7 +114,7 @@
                 "lang_tag": "advanced",
                 "text": "Advanced"
             },
-            "Position": "1",
+            "Position": 1,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "advanced_device"
@@ -126,7 +124,7 @@
                 "lang_tag": "logs",
                 "text": "Logs"
             },
-            "Position": "2",
+            "Position": 2,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "device_logs"
@@ -136,7 +134,7 @@
                 "lang_tag": "notifications",
                 "text": "Notifications"
             },
-            "Position": "3",
+            "Position": 3,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "device_notifications"
@@ -146,7 +144,7 @@
                 "lang_tag": "device_scenes",
                 "text": "Scenes"
             },
-            "Position": "4",
+            "Position": 4,
             "TabType": "javascript",
             "ScriptName": "shared.js",
             "Function": "device_scenes"
@@ -161,7 +159,7 @@
             "serviceId": "urn:toggledbits-com:serviceId:RachioZone1",
             "serviceStateTable": {
                 "Enabled": {
-                    "value": "1",
+                    "value": 1,
                     "comparisson": "="
                 }
             }
@@ -175,7 +173,7 @@
             "serviceId": "urn:toggledbits-com:serviceId:RachioZone1",
             "serviceStateTable": {
                 "Enabled": {
-                    "value": "0",
+                    "value": 0,
                     "comparisson": "="
                 }
             }
