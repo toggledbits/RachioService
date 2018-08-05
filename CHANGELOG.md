@@ -1,6 +1,6 @@
 # Change Log #
 
-## Version 1.5 (develop branch) ##
+## Version 1.5 (stable branch) ##
 
 * Add Enabled variable to stop plugin operation/API polling.
 * Force category/subcategory to switch/valve for zones and schedules. Having it set in the device file doesn't seem to be sufficient.
