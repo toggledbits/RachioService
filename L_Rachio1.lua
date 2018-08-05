@@ -3,10 +3,8 @@
 --
 -- L_Rachio1.lua
 -- Rachio Plug-in for Vera implementation module
--- Copyright 2017 Patrick H. Rigney, All Rights Reserved
+-- Copyright 2017,2018 Patrick H. Rigney, All Rights Reserved
 -- For information, see http://www.toggledbits.com/rachio/
---
--- $Id$
 --
 -- ----------------------------------------------------------------------------
 --
@@ -15,7 +13,6 @@
 --   Better icons? More state icons?
 --   Set or clear a rain delay?
 --   More watering stats? Weather? What's the API got?
---   What if a schedule ends early (RunEnds earlier, Duration shorter, than advertised)?
 --   Schedules... seasonal adjustment? enable/disable? What does skip do, anyway?
 --   Handle non-ONLINE status for device, propagate to zones and schedules?
 --
@@ -27,7 +24,7 @@ local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
 local _PLUGIN_VERSION = "1.5develop"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
-local _CONFIGVERSION = 00107
+local _CONFIGVERSION = 00108
 
 local debugMode = false
 
@@ -62,12 +59,14 @@ local runStamp = 0
 local tickCount = 0
 local lastTick = 0
 local nthresh = 1360 -- threshold for API quota warnings
+local nextUpdate = 0
 local updatePending = false
 local schedRunning = false
 local firstRun = true
 local messages = {}
 local isALTUI = false
 local isOpenLuup = false
+local serviceDevice
 
 local https = require("ssl.https")
 local http = require("socket.http")
@@ -220,7 +219,7 @@ end
 
 -- Get numeric variable, or return default value if not set or blank
 local function getVarNumeric( serviceid, name, dflt, dev )
-    if dev == nil then dev = luup.device end
+    if dev == nil then dev = serviceDevice end
     local s = luup.variable_get(serviceid, name, dev)
     if (s == nil or s == "") then return dflt end
     s = tonumber(s, 10)
@@ -230,17 +229,7 @@ end
 
 -- Find the parent service device for the passed device
 local function findServicePlugin( dev )
-    if dev == nil then dev = luup.device end
-    local d = luup.devices[dev]
-    if d ~= nil then 
-        -- If we're the Service plugin, return immediately.
-        if d.device_type == SYSTYPE then return dev end
-        if d.device_type == DEVICETYPE or d.device_type == ZONETYPE or d.device_type == SCHEDULETYPE then
-            return d.device_num_parent
-        end
-    end
-    L({level=1,msg="Can't find service plugin for %1 %2"}, dev, d)
-    return nil
+    return serviceDevice
 end
 
 -- Shortcut function to return state of SwitchPower1 Status variable
@@ -249,6 +238,19 @@ local function isServiceCheck()
     local s = getVarNumeric( SYSSID, "ServiceCheck", "", p )
     if s == "" then return true end -- default is we really don't know, so say down
     return (s ~= "0")
+end
+
+-- Schedule next update. If it's sooner than current, start new timer thread
+local function scheduleUpdate( delay, force )
+    D("scheduleUpdate(%1,%2) nextUpdate=%3 (%4 from now)", delay, force, nextUpdate, nextUpdate-os.time())
+    local nxt = os.time() + delay
+    force = force or nextUpdate == 0 or nextUpdate <= os.time()
+    if force or nxt < nextUpdate then
+        runStamp = runStamp + 1
+        nextUpdate = nxt
+        luup.call_delay("rachio_plugin_tick", delay, runStamp)
+        D("scheduleUpdate() scheduled next tick for %1 (%2), stamp %3", delay, nxt, runStamp)
+    end
 end
 
 local function resolveDevice( dev )
@@ -282,7 +284,7 @@ end
 
 local function setMessage(s, sid, dev, pri)
     if sid == nil then sid = SYSSID end
-    if dev == nil then dev = luup.device end
+    if dev == nil then dev = serviceDevice end
     if pri == nil then pri = 0 end
     local l = messages[dev]
     if l ~= nil and pri < l.pri then
@@ -316,6 +318,7 @@ end
 
 -- Returns children matching type as (true) array of device numbers
 local function findChildrenByType( parentId, typ )
+    D("findChildrenByType(%1,%2)", parentId, typ)
     assert(type(parentId)=="number")
     local result = {}
     for k,v in pairs( luup.devices ) do
@@ -357,13 +360,12 @@ hardFail = function (status, msg) -- forward declared
 
     -- Set ServiceCheck variable and update status message
     if status == 0 or status == nil then status = 99 end
-    local service = findServicePlugin( luup.device )
     if msg == nil then msg = "Offline" end
-    luup.variable_set(SYSSID, "ServiceCheck", status, service)
-    showServiceStatus(msg, service)
+    luup.variable_set(SYSSID, "ServiceCheck", status, serviceDevice)
+    showServiceStatus(msg, serviceDevice)
 
     -- Set status of devices and zones?
-    local devices = findChildrenByType( service, DEVICETYPE )
+    local devices = findChildrenByType( serviceDevice, DEVICETYPE )
     for _,devnum in ipairs(devices) do
         setMessage("NO SERVICE", DEVICESID, devnum, 99)
         luup.variable_set(DEVICESID, "Message", "NO SERVICE", devnum)
@@ -411,14 +413,14 @@ local function rateLimit()
 end
 
 local function getJSON(path, method, body)
-    local url = ( luup.variable_get( SYSSID, "APIBase", luup.device ) or API_BASE ) .. path
+    local url = ( luup.variable_get( SYSSID, "APIBase", serviceDevice ) or API_BASE ) .. path
     if method == nil then method = "GET" end
 
     -- Check our query rate, fail if exceeded.
     if rateLimit() then return HTTPREQ_RATELIMIT, "API rate limit" end
 
     -- Get the API key
-    local apiKey = luup.variable_get(SYSSID, "APIKey", luup.device)
+    local apiKey = luup.variable_get(SYSSID, "APIKey", serviceDevice)
     if ( apiKey == nil or apiKey == "" ) then
         return HTTPREQ_AUTHFAIL, "API key not set"
     end
@@ -455,17 +457,16 @@ local function getJSON(path, method, body)
     end
     
     -- Update call count.
-    local parent = findServicePlugin(luup.device)
-    local ncall = getVarNumeric(SYSSID, "DailyCalls", 0, parent) + 1
-    local ntime = getVarNumeric(SYSSID, "DailyStamp", 0, parent)
+    local ncall = getVarNumeric(SYSSID, "DailyCalls", 0, serviceDevice) + 1
+    local ntime = getVarNumeric(SYSSID, "DailyStamp", 0, serviceDevice)
     local today = math.floor(os.time() / 86400)
     if ntime ~= today then
         D("getJSON() call counter day changed, was %1 now %2, resetting counter", ntime, today)
         L("Made %1 API calls in last 24 hours. Resetting counter now.", ncall)
         ncall = 1
-        luup.variable_set(SYSSID, "DailyStamp", today, parent)
+        luup.variable_set(SYSSID, "DailyStamp", today, serviceDevice)
     end 
-    luup.variable_set(SYSSID, "DailyCalls", ncall, parent)
+    luup.variable_set(SYSSID, "DailyCalls", ncall, serviceDevice)
     if ( ncall % 100 ) == 0 then
         L("Milestone: %1 API calls made so far today.", ncall)
     else
@@ -843,7 +844,7 @@ end
 
 local function setUpDevices(data, serviceDev)
     D("setUpDevices(data,%1)", serviceDev)
-    if serviceDev == nil then serviceDev = luup.device end
+    if serviceDev == nil then serviceDev = serviceDevice end
 
     showServiceStatus("Online (configuring)", serviceDev)
 
@@ -929,14 +930,431 @@ local function setUpDevices(data, serviceDev)
     return changes == 0
 end
 
+-- -----------------------------------------------------------------------------
+--
+-- G E N E R I C   P L U G I N   F U N C T I O N S
+--
+-- -----------------------------------------------------------------------------
+
+local function checkFirmware(dev)
+    if dev == nil then dev = serviceDevice end
+    D("checkFirmware(%1) version=%1, in parts %2.%3.%4", luup.version,
+        luup.version_branch, luup.version_major, luup.version_minor)
+
+    -- Look for UI7 or better. We don't support openLuup at the moment because it does
+    -- not support UDNs.
+    if isOpenLuup then return true end
+    if luup.version_branch ~= 1 or luup.version_major < 7 then
+        return false
+    end
+
+    -- Bug in Vera UI parameter handling prevents correct passing of parameters
+    -- from UI to action.
+    -- See http://forum.micasaverde.com/index.php/topic,49752.msg326598.html#msg326598
+    if luup.version_minor == 947
+            or luup.version_minor == 2931
+            or luup.version_minor == 2935
+            or luup.version_minor == 2937 then
+        return false
+    end
+
+    -- We're good.
+    local check = luup.variable_get(SYSSID, "UI7Check", dev)
+    if check ~= "true" then
+        luup.variable_set(SYSSID, "UI7Check", "true", dev)
+    end
+    return true
+end
+
+-- runOnce() for one-time initialization; compares _CONFIGVERSION constant to
+-- Version state var, does something if they're different.
+local function runOnce(pdev)
+    local s = getVarNumeric(SYSSID, "Version", 0, pdev)
+    D("runOnce(%1) _CONFIGVERSION=%2, device version=%3", pdev, _CONFIGVERSION, s)
+    if s == 0 then
+        -- First-ever run
+        L("runOnce() creating config")
+        luup.variable_set(SYSSID, "APIKey", "", pdev)
+        luup.variable_set(SYSSID, "Enabled", "1", pdev)
+        luup.variable_set(SYSSID, "PID", "", pdev)
+        luup.variable_set(SYSSID, "ServiceCheck", HTTPREQ_AUTHFAIL, pdev)
+        luup.variable_set(SYSSID, "HideZones", "0", pdev)
+        luup.variable_set(SYSSID, "HideDisabledZones", "0", pdev)
+        luup.variable_set(SYSSID, "HideSchedules", "0", pdev)
+        luup.variable_set(SYSSID, "HideDisabledSchedules", "0", pdev)
+        luup.variable_set(SYSSID, "CycleMult", "1", pdev)
+        luup.variable_set(SYSSID, "LastUpdate", "0", pdev)
+        luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
+        luup.variable_set(SYSSID, "DailyStamp", "0", pdev)
+        luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
+        return
+    end
+
+    -- No per-version changes yet. e.g. if s < 00103 then ...
+    if s < 00106 then 
+        L("Upgrading configuration to 00106...")
+        luup.variable_set(SYSSID, "PID", "", pdev)
+        luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
+        luup.variable_set(SYSSID, "DailyStamp", "0", pdev)
+    end        
+    if s < 00107 then
+        L("Upgrading configuration to 00107...")
+        -- Convert linking variables from UDNs to device numbers
+        local l = findChildrenByType( pdev, ZONETYPE )
+        for _,d in ipairs(l) do
+            local p = luup.variable_get( DEVICESID, "ParentDevice", d ) or ""
+            if p ~= "" and p:sub(0,5) == "uuid:" then
+                local dd,nn = resolveDevice( p )
+                if dd ~= nil then
+                    luup.variable_set( DEVICESID, "ParentDevice", nn, d )
+                end
+            end
+        end
+        l = findChildrenByType( pdev, SCHEDULETYPE )
+        for _,d in ipairs(l) do
+            local p = luup.variable_get( DEVICESID, "ParentDevice", d ) or ""
+            if p ~= "" and p:sub(0,5) == "uuid:" then
+                local dd,nn = resolveDevice( p )
+                if dd ~= nil then
+                    luup.variable_set( DEVICESID, "ParentDevice", nn, d )
+                end
+            end
+        end
+    end
+    if s < 00108 then
+        L("Upgrading configuration to 00108...")
+        luup.variable_set(SYSSID, "Enabled", "1", pdev)
+    end
+
+    -- Update version state var.
+    if (s ~= _CONFIGVERSION) then
+        luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
+    end
+end
+
+-- Return the plugin version string
+function getVersion()
+    return _PLUGIN_VERSION, _CONFIGVERSION
+end
+
+local function init(pdev)
+    D("init(%1)", pdev)
+
+    showServiceStatus("Initializing...", pdev)
+
+    -- Pre-flight check...
+    A(json ~= nil, "Missing JSON module (dkjson or json)")
+    A(http ~= nil, "Missing socket.http")
+    A(https ~= nil, "Missing ssl.http")
+    A(ltn12 ~= nil, "Missing ltn12")
+
+    -- Clear runStamp and arm for initial set-up query
+    runStamp = 0
+    tickCount = 0
+    lastTick = 0
+    updatePending = false
+    nextUpdate = 0
+    firstRun = true
+    messages = {}
+
+    -- Clear cycleMult
+    luup.variable_set(SYSSID, "CycleMult", "1", pdev)
+
+    return true
+end
+
+-- Get things moving...
+local function run(pdev)
+    D("run(%1)", pdev)
+
+    scheduleUpdate( 5, true )
+    D("run(): scheduled first step, done")
+
+    luup.set_failure(0, pdev)
+
+    return true, true -- signal success and separate thread running
+end
+
+-- Initialize.
+function start(pdev)
+    L("starting plugin version %2 device %1", pdev, _PLUGIN_VERSION)
+    pdev = tonumber(pdev or "" ,10)
+    
+    serviceDevice = pdev
+
+    -- Check for ALTUI and OpenLuup
+    for k,v in pairs(luup.devices) do
+        if v.device_type == "urn:schemas-upnp-org:device:altui:1" then
+            D("start() detected ALTUI at %1", k)
+            isALTUI = true
+            local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+                { newDeviceType=SYSTYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.ServiceDraw" },
+                k )
+            D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
+            local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+                { newDeviceType=DEVICETYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.DeviceDraw" },
+                k )
+            D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
+            local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+                { newDeviceType=SCHEDULETYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.ScheduleDraw" },
+                k )
+            D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
+            local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+                { newDeviceType=ZONETYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.ZoneDraw" },
+                k )
+            D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
+        elseif v.device_type == "openLuup" then
+            D("start() detected openLuup")
+            isOpenLuup = true
+        end
+    end
+
+    -- Check UI version
+    if not checkFirmware(pdev) then
+        hardFail(HTTPREQ_GENERICERROR, "Offline (unsupported firmware)")
+    end
+
+    -- One-time stuff
+    runOnce(pdev)
+
+    -- Initialize
+    firstRun = true
+    
+    if getVarNumeric( SYSSID, "Enabled", 1, pdev ) == 0 then
+        hardFail(HTTPREQ_GENERICERROR, "Offline (disabled)")
+    end
+    
+    if getVarNumeric( SYSSID, "DebugMode", 0, pdev ) ~= 0 then
+        debugMode = true
+        D("start() debug mode enabled by state variable")
+    end
+    
+    local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+    if iv < DEFAULT_INTERVAL then
+        L({level=2,msg="Warning: Interval is %1; values < %2 are likely to exceed Rachio's daily API request quota."}, iv, DEFAULT_INTERVAL)
+    end
+    
+    if init(pdev) then
+        -- Start
+        run(pdev)
+        return true, "OK", _PLUGIN_NAME
+    else
+        hardFail(HTTPREQ_GENERICERROR, "Offline (failed init)")
+        return false, "Initialization failed", _PLUGIN_NAME
+    end
+end
+
+function stop(pdev)
+    D("stop(%1)", pdev)
+    if pdev == nil then pdev = serviceDevice end
+    pdev = tonumber(pdev,10)
+
+    -- Setting runStamp to 0 effectively kills the child tick process on the
+    -- next cycle
+    runStamp = 0
+    showServiceStatus("Offline (stopped)", pdev)
+end
+
+-- Do interval-based stuff. This is called using pcall(), so any error thrown
+-- will result in a stop of the active scheduling process.
+local function ptick(pdev, forced)
+    D("ptick(%1,%2)", pdev, forced)
+    
+    local now = os.time()
+    local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
+    
+    -- Set schedRunning flag to false. Any controller running a schedule will set it.
+    schedRunning = false
+
+    -- Fetch person data. In Rachio API, the direct person query reports
+    -- everything, so do as much with that report as we can.
+    local person = luup.variable_get(SYSSID, "PID", pdev) or ""
+    if person == "" then
+        showServiceStatus("Identifying...", pdev)
+        local status,data = getJSON("/public/person/info")
+        luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
+        if status == HTTPREQ_AUTHFAIL then
+            -- If API key isn't valid, exit without rescheduling. We can't work (at all).
+            if data == 401 then
+                -- API key set, but somehow not authorized
+                hardFail(status, "Offline (invalid API key)")
+            end
+            hardFail(status, "Offline (API key not set)")
+        end
+        -- Check response for first-level problems
+        if status ~= HTTPREQ_OK then
+            if data == 429 then
+                -- Rachio API says we've queried too much (limit 1700/day)
+                -- Defer queries for at least an hour.
+                local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+                cycleMult = math.ceil( 3600 / iv )
+                L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
+                showServiceStatus("Offline (quota exceeded--delaying)", pdev)
+            else
+                -- Soft fail of some kind. Double poll interval and wait to retry.
+                L("Can't identify, invalid API response: %1", data)
+                if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
+                showServiceStatus("Offline (error--delaying)", pdev)
+            end
+        elseif data.id ~= nil and data.id ~= "" then
+            -- Good!
+            luup.variable_set(SYSSID, "PID", data.id, pdev)
+            person = data.id
+        else    
+            hardFail(status, "Offline (no auth)")
+        end
+    end
+
+    if person ~= "" then
+        -- Now we know who, query for what...
+        showServiceStatus("Online (updating)", pdev)
+        local problem = false
+        local lastUpdate = getVarNumeric( SYSSID, "LastUpdate", 0, pdev )
+        if forced or firstRun or ( os.time() >= ( lastUpdate + getVarNumeric( SYSSID, "DeviceInterval", 3600, pdev ) ) ) then
+            local status,data = getJSON("/public/person/" .. person)
+            luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
+            if status ~= HTTPREQ_OK then
+                problem = true
+                if data == 429 then
+                    -- Rachio API quota exceeded
+                    local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+                    cycleMult = math.ceil( 3600 / iv )
+                    L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
+                    showServiceStatus("Offline (quota exceeded--delaying)", pdev)
+                else
+                    L({level=2,msg="Full query, invalid API response: %1"}, data)
+                    if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
+                    showServiceStatus("Offline (error--delaying)", pdev)
+                end
+            else
+                -- Good response. Do our device update.
+                if firstRun then
+                    L("First run, set up devices")
+                    setUpDevices( data, pdev )
+                    firstRun = false -- don't do this again
+                end
+
+                -- Do device update (same data as set up if it was done)
+                if doDeviceUpdate( data, pdev ) then
+                    luup.variable_set( SYSSID, "ServiceCheck", 0, pdev )
+                    luup.variable_set( SYSSID, "LastUpdate", now, pdev )
+                end
+            end
+        end
+
+        -- Each interval, we do a schedule check on each controller.
+        -- N.B. Schedule check for each device is one query per...
+        if not problem then
+            -- Check schedule on each controller
+            local devices = findChildrenByType( pdev, DEVICETYPE )
+            for _,d in pairs(devices) do 
+                D("ptick() doing schedule check on %1 (%2)", d, luup.devices[d].description)
+                if not doSchedCheck( d, nil, pdev ) then 
+                    problem = true
+                    break 
+                else
+                    showServiceStatus( "Online", pdev )
+                end
+            end
+        end
+        
+        -- Reset cycleMult if everything went smoothly.
+        if not problem then
+            cycleMult = 1
+        end
+    end
+    postMessages()
+    
+    -- Check our call count...
+    local ncall = getVarNumeric(SYSSID, "DailyCalls", 0)
+    if ncall >= nthresh then
+        local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
+        L({level=2,msg="WARNING! Number of daily Rachio API calls high (%1 so far); consider increasing Interval (currently %2)"},
+            ncall, iv)
+        nthresh = nthresh + 50 -- warn every first calls after first hit
+    end
+
+    luup.variable_set(SYSSID, "CycleMult", cycleMult, pdev)
+    return true
+end
+
+-- Run a clock interval. This is called periodically, and reschedules itself, or not.
+-- It will not reschedule itself if there's a "permanent" error (e.g. no APIKey set).
+function tick(stepStampCheck)
+    D("tick(%1) serviceDevice=%2", stepStampCheck, serviceDevice)
+
+    -- See if stamps match. If not, runStamp has changed and another thread is running, so quit.
+    local stepStamp = tonumber(stepStampCheck,10)
+    if stepStamp ~= runStamp then
+        D("tick() stamp mismatch, expecting %1 got %2. Another thread running, bye!", runStamp, stepStampCheck)
+        return
+    end
+    
+    -- Flag no task scheduled now
+    nextUpdate = 0
+    
+    -- If we've been disabled, stop this.
+    if getVarNumeric(SYSSID, "Enabled", 1, serviceDevice) == 0 then
+        hardFail(HTTPREQ_GENERICERROR, "Offline (disabled)")
+    end
+
+    -- Make sure we're working with our parent (plugin) device
+    tickCount = tickCount + 1
+    D("tick() running serviceDevice=%2, tickCount=%1", tickCount, serviceDevice)
+
+    -- Check last tick time. If too soon, skip this
+    local tooSoon = (lastTick + 30) > os.time()
+    lastTick = os.time()
+
+    -- Use pcall() to run the plugin's stuff. If it fails, we stay in control.
+    local success, err
+    if tooSoon then
+        D("tick() too soon, skipping ptick")
+        success = true -- fake it
+    elseif updatePending then
+        D("tick() update pending, skipping ptick")
+        success = true -- fake it
+    else
+        updatePending = true -- don't allow other updates while we're working
+        success,err = pcall( ptick, serviceDevice )
+        updatePending = false
+        D("tick() ptick returned %1,%2", success, err)
+    end
+    if success then
+        -- No errors, schedule next event (unless stepStamp == -1, then it's a direct/special call)
+        local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, serviceDevice)
+        local nextCycleDelay = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, serviceDevice)
+        if schedRunning then 
+            nextCycleDelay = getVarNumeric(SYSSID, "ActiveInterval", 30, serviceDevice)
+        end
+        nextCycleDelay = nextCycleDelay * cycleMult
+        if nextCycleDelay < 1 then nextCycleDelay = 60 
+        elseif nextCycleDelay > MAX_INTERVAL then nextCycleDelay = MAX_INTERVAL end
+        D("tick() cycle finished, next in " .. nextCycleDelay .. " seconds, cycleMult is " .. tostring(cycleMult))
+        scheduleUpdate( nextCycleDelay )
+        return
+    end
+
+    -- Hard stop. The plugin will set pluginStatus if it has already trapped the
+    -- the error and set up all of its messages, etc., so only react here if
+    -- pluginStatus isn't set.
+    L("tick(): ptick() error: %1, aborting timer cycle.", err)
+    if err == nil or err.pluginStatus == nil then
+        -- We didn't stop because of a plugin problem, so issue our own
+        -- plugin hardFail
+        hardFail(HTTPREQ_GENERICERROR, "Offline (internal error)")
+    end
+end
+
 local function forceUpdate( devnum )
-    -- local service = findServicePlugin(devnum) -- ??? are we supposed to be using this below, what happened here?
     if luup.devices[devnum].device_type == DEVICETYPE then
         luup.variable_set(DEVICESID, "Message", "---", devnum) -- direct
     end
     if not updatePending then
         updatePending = true
-        luup.call_delay("rachio_plugin_tick", 2, "-1") -- "-1" stamp is special signal, see tick()
+        ptick( serviceDevice )
+        updatePending = false
+        scheduleUpdate( getVarNumeric(SYSSID, "ActiveInterval", 30, serviceDevice) )
     else
         D("forceUpdate() an update is already pending")
     end
@@ -1041,7 +1459,7 @@ function rachioDeviceOn( devnum )
 
     -- Call API to turn on controller
     local d = luup.devices[ devnum ]
-    L("Request for controller standby %1 (%2)", devnum, d.description)
+    L("Request for controller active %1 (%2)", devnum, d.description)
     local status,resp = getJSON("/public/device/on", "PUT", { id=d.id })
     D("rachioDeviceOn() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
@@ -1165,408 +1583,6 @@ function testAction( devnum, settings )
     return true
 end
 
--- -----------------------------------------------------------------------------
---
--- G E N E R I C   P L U G I N   F U N C T I O N S
---
--- -----------------------------------------------------------------------------
-
-local function checkFirmware(dev)
-    if dev == nil then dev = luup.device end
-    D("checkFirmware(%1) version=%1, in parts %2.%3.%4", luup.version,
-        luup.version_branch, luup.version_major, luup.version_minor)
-
-    -- Look for UI7 or better. We don't support openLuup at the moment because it does
-    -- not support UDNs.
-    if isOpenLuup or luup.version_branch ~= 1 or luup.version_major < 7 then
-        return false
-    end
-
-    -- Bug in Vera UI parameter handling prevents correct passing of parameters
-    -- from UI to action.
-    -- See http://forum.micasaverde.com/index.php/topic,49752.msg326598.html#msg326598
-    if luup.version_minor == 947
-            or luup.version_minor == 2931
-            or luup.version_minor == 2935
-            or luup.version_minor == 2937 then
-        return false
-    end
-
-    -- We're good.
-    local check = luup.variable_get(SYSSID, "UI7Check", dev)
-    if check ~= "true" then
-        luup.variable_set(SYSSID, "UI7Check", "true", dev)
-    end
-    return true
-end
-
--- runOnce() for one-time initialization; compares _CONFIGVERSION constant to
--- Version state var, does something if they're different.
-local function runOnce(pdev)
-    local s = getVarNumeric(SYSSID, "Version", 0, pdev)
-    D("runOnce(%1) _CONFIGVERSION=%2, device version=%3", pdev, _CONFIGVERSION, s)
-    if s == 0 then
-        -- First-ever run
-        L("runOnce() creating config")
-        luup.variable_set(SYSSID, "APIKey", "", pdev)
-        luup.variable_set(SYSSID, "PID", "", pdev)
-        luup.variable_set(SYSSID, "ServiceCheck", HTTPREQ_AUTHFAIL, pdev)
-        luup.variable_set(SYSSID, "HideZones", "0", pdev)
-        luup.variable_set(SYSSID, "HideDisabledZones", "0", pdev)
-        luup.variable_set(SYSSID, "HideSchedules", "0", pdev)
-        luup.variable_set(SYSSID, "HideDisabledSchedules", "0", pdev)
-        luup.variable_set(SYSSID, "CycleMult", "1", pdev)
-        luup.variable_set(SYSSID, "LastUpdate", "0", pdev)
-        luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
-        luup.variable_set(SYSSID, "DailyStamp", "0", pdev)
-        luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
-        return
-    end
-
-    -- No per-version changes yet. e.g. if s < 00103 then ...
-    if s < 00106 then 
-        L("Upgrading configuration to 00106...")
-        luup.variable_set(SYSSID, "PID", "", pdev)
-        luup.variable_set(SYSSID, "DailyCalls", "0", pdev)
-        luup.variable_set(SYSSID, "DailyStamp", "0", pdev)
-    end        
-    if s < 00107 then
-        L("Upgrading configuration to 00107...")
-        -- Convert linking variables from UDNs to device numbers
-        local l = findChildrenByType( pdev, ZONETYPE )
-        for _,d in ipairs(l) do
-            local p = luup.variable_get( DEVICESID, "ParentDevice", d ) or ""
-            if p ~= "" and p:sub(0,5) == "uuid:" then
-                local dd,nn = resolveDevice( p )
-                if dd ~= nil then
-                    luup.variable_set( DEVICESID, "ParentDevice", nn, d )
-                end
-            end
-        end
-        l = findChildrenByType( pdev, SCHEDULETYPE )
-        for _,d in ipairs(l) do
-            local p = luup.variable_get( DEVICESID, "ParentDevice", d ) or ""
-            if p ~= "" and p:sub(0,5) == "uuid:" then
-                local dd,nn = resolveDevice( p )
-                if dd ~= nil then
-                    luup.variable_set( DEVICESID, "ParentDevice", nn, d )
-                end
-            end
-        end
-    end
-
-    -- Update version state var.
-    if (s ~= _CONFIGVERSION) then
-        luup.variable_set(SYSSID, "Version", _CONFIGVERSION, pdev)
-    end
-end
-
--- Return the plugin version string
-function getVersion()
-    return _PLUGIN_VERSION, _CONFIGVERSION
-end
-
-local function init(pdev)
-    D("init(%1)", pdev)
-
-    showServiceStatus("Initializing...", pdev)
-
-    -- Pre-flight check...
-    A(json ~= nil, "Missing JSON module (dkjson or json)")
-    A(http ~= nil, "Missing socket.http")
-    A(https ~= nil, "Missing ssl.http")
-    A(ltn12 ~= nil, "Missing ltn12")
-
-    -- Clear runStamp and arm for initial set-up query
-    runStamp = 0
-    tickCount = 0
-    lastTick = 0
-    updatePending = false
-    firstRun = true
-    messages = {}
-
-    -- Clear cycleMult
-    luup.variable_set(SYSSID, "CycleMult", "1", pdev)
-
-    return true
-end
-
--- Get things moving...
-local function run(pdev)
-    D("run(%1)", pdev)
-
-    -- Immediately set a new timestamp
-    runStamp = os.time()
-
-    luup.call_delay("rachio_plugin_tick", 5, runStamp)
-    D("run(): scheduled first step, done")
-
-    luup.set_failure(0, pdev)
-
-    return true, true -- signal success and separate thread running
-end
-
--- Initialize.
-function start(pdev)
-    L("starting plugin version %2 device %1", pdev, _PLUGIN_VERSION)
-    if pdev == nil then pdev = luup.device end
-    pdev = tonumber(pdev,10)
-
-    -- Check for ALTUI and OpenLuup
-    for k,v in pairs(luup.devices) do
-        if v.device_type == "urn:schemas-upnp-org:device:altui:1" then
-            D("start() detected ALTUI at %1", k)
-            isALTUI = true
-            local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
-                { newDeviceType=SYSTYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio_ALTUI.DeviceDraw" },
-                k )
-            D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
-        elseif v.device_type == "openLuup" then
-            D("start() detected openLuup")
-            isOpenLuup = true
-        end
-    end
-
-    -- Check UI version
-    if not checkFirmware(pdev) then
-        hardFail(HTTPREQ_GENERICERROR, "Offline (unsupported firmware)")
-    end
-
-    -- One-time stuff
-    runOnce(pdev)
-
-    -- Initialize
-    firstRun = true
-    
-    if getVarNumeric( SYSSID, "DebugMode", 0, pdev ) ~= 0 then
-        debugMode = true
-        D("start() debug mode enabled by state variable")
-    end
-    
-    local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
-    if iv < DEFAULT_INTERVAL then
-        L({level=2,msg="Warning: Interval is %1; values < %2 are likely to exceed Rachio's daily API request quota."}, iv, DEFAULT_INTERVAL)
-    end
-    
-    if init(pdev) then
-        -- Start
-        run(pdev)
-        return true, "OK", _PLUGIN_NAME
-    else
-        hardFail(HTTPREQ_GENERICERROR, "Offline (failed init)")
-        return false, "Initialization failed", _PLUGIN_NAME
-    end
-end
-
-function stop(pdev)
-    D("stop(%1)", pdev)
-    if pdev == nil then pdev = luup.device end
-    pdev = tonumber(pdev,10)
-
-    -- Setting runStamp to 0 effectively kills the child tick process on the
-    -- next cycle
-    runStamp = 0
-    showServiceStatus("Offline (stopped)", pdev)
-end
-
--- Do interval-based stuff. This is called using pcall(), so any error thrown
--- will result in a stop of the active scheduling process.
-local function ptick(p)
-    D("ptick(%1)", p)
-
-    local pdev = tonumber(p["pdev"],10)
-    assert(pdev ~= nil and pdev > 0, "Invalid pdev")
-    local forced = p["forceUpdate"] or false
-
-    local now = os.time()
-    local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
-    
-    -- Set schedRunning flag to false. Any controller running a schedule will set it.
-    schedRunning = false
-
-    -- Fetch person data. In Rachio API, the direct person query reports
-    -- everything, so do as much with that report as we can.
-    local person = luup.variable_get(SYSSID, "PID", pdev) or ""
-    if person == "" then
-        showServiceStatus("Identifying...", pdev)
-        local status,data = getJSON("/public/person/info")
-        luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
-        if status == HTTPREQ_AUTHFAIL then
-            -- If API key isn't valid, exit without rescheduling. We can't work (at all).
-            if data == 401 then
-                -- API key set, but somehow not authorized
-                hardFail(status, "Offline (invalid API key)")
-            end
-            hardFail(status, "Offline (API key not set)")
-        end
-        -- Check response for first-level problems
-        if status ~= HTTPREQ_OK then
-            if data == 429 then
-                -- Rachio API says we've queried too much (limit 1700/day)
-                -- Defer queries for at least an hour.
-                local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
-                cycleMult = math.ceil( 3600 / iv )
-                L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
-                showServiceStatus("Offline (quota exceeded--delaying)", pdev)
-            else
-                -- Soft fail of some kind. Double poll interval and wait to retry.
-                L("Can't identify, invalid API response: %1", data)
-                if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-                showServiceStatus("Offline (error--delaying)", pdev)
-            end
-        elseif data.id ~= nil and data.id ~= "" then
-            -- Good!
-            luup.variable_set(SYSSID, "PID", data.id, pdev)
-            person = data.id
-        else    
-            hardFail(status, "Offline (no auth)")
-        end
-    end
-
-    if person ~= "" then
-        -- Now we know who, query for what...
-        showServiceStatus("Online (updating)", pdev)
-        local problem = false
-        local lastUpdate = getVarNumeric( SYSSID, "LastUpdate", 0, pdev )
-        if forced or firstRun or ( os.time() >= ( lastUpdate + getVarNumeric( SYSSID, "DeviceInterval", 3600, pdev ) ) ) then
-            local status,data = getJSON("/public/person/" .. person)
-            luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
-            if status ~= HTTPREQ_OK then
-                problem = true
-                if data == 429 then
-                    -- Rachio API quota exceeded
-                    local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
-                    cycleMult = math.ceil( 3600 / iv )
-                    L({level=2,msg="Rachio API reporting exceeded daily request quota. Delaying at least one hour before retrying."})
-                    showServiceStatus("Offline (quota exceeded--delaying)", pdev)
-                else
-                    L({level=2,msg="Full query, invalid API response: %1"}, data)
-                    if (cycleMult < MAX_CYCLEMULT) then cycleMult = cycleMult * 2 end
-                    showServiceStatus("Offline (error--delaying)", pdev)
-                end
-            else
-                -- Good response. Do our device update.
-                if firstRun then
-                    L("First run, set up devices")
-                    setUpDevices( data, pdev )
-                    firstRun = false -- don't do this again
-                end
-
-                -- Do device update (same data as set up if it was done)
-                if doDeviceUpdate( data, pdev ) then
-                    luup.variable_set( SYSSID, "ServiceCheck", 0, pdev )
-                    luup.variable_set( SYSSID, "LastUpdate", now, pdev )
-                end
-            end
-        end
-
-        -- Each interval, we do a schedule check on each controller.
-        -- N.B. Schedule check for each devices is one query per...
-        if not problem then
-            -- Check schedule on each controller
-            local devices = findChildrenByType( pdev, DEVICETYPE )
-            for _,d in pairs(devices) do 
-                D("ptick() doing schedule check on %1 (%2)", d, luup.devices[d].description)
-                if not doSchedCheck( d, nil, pdev ) then 
-                    problem = true
-                    break 
-                else
-                    showServiceStatus( "Online", pdev )
-                end
-            end
-        end
-        
-        -- Reset cycleMult if everything went smoothly.
-        if not problem then
-            cycleMult = 1
-        end
-    end
-    postMessages()
-    
-    -- Check our call count...
-    local ncall = getVarNumeric(SYSSID, "DailyCalls", 0)
-    if ncall >= nthresh then
-        local iv = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
-        L({level=2,msg="WARNING! Number of daily Rachio API calls high (%1 so far); consider increasing Interval (currently %2)"},
-            ncall, iv)
-        nthresh = nthresh + 50 -- warn every first calls after first hit
-    end
-
-    luup.variable_set(SYSSID, "CycleMult", cycleMult, pdev)
-    return true
-end
-
--- Run a clock interval. This is called periodically, and reschedules itself, or not.
--- It will not reschedule itself if there's a "permanent" error (e.g. no APIKey set).
-function tick(stepStampCheck)
-    D("tick(%1) luup.device=%2", stepStampCheck, luup.device)
-
-    -- See if stamps match. If not, runStamp has changed and another thread is running, so quit.
-    -- "Craftiness" here. If stamp is -1, we're being run by another thread explicitly.
-    local stepStamp = tonumber(stepStampCheck,10)
-    if (stepStamp ~= -1 and stepStamp ~= runStamp) then
-        D("tick() stamp mismatch, expecting %1 got %2. Another thread running, bye!", runStamp, stepStampCheck)
-        return
-    end
-
-    -- Make sure we're working with our parent (plugin) device
-    local pdev = findServicePlugin(luup.device)
-    tickCount = tickCount + 1
-    D("tick() running pdev=%2, tickCount=%1", tickCount, pdev)
-
-    -- Check last tick time. If too soon, skip this
-    local tooSoon = stepStamp ~= -1 and (lastTick + 30) > os.time()
-    lastTick = os.time()
-
-    -- Use pcall() to run the plugin's stuff. If it fails, we stay in control.
-    local success, err
-    if tooSoon then
-        D("tick() too soon, skipping ptick")
-        success = true -- fake it
-    elseif stepStamp ~= -1 and updatePending then
-        D("tick() update pending, skipping ptick")
-        success = true -- fake it
-    else
-        updatePending = true -- don't allow other updates while we're working
-        local force = stepStamp == -1
-        success,err = pcall( ptick, { pdev=pdev, forceUpdate=force } )
-        updatePending = false
-        D("tick() ptick returned %1,%2", success, err)
-    end
-    if success then
-        -- No errors, schedule next event (unless stepStamp == -1, then it's a direct/special call)
-        if stepStamp ~= -1 then
-            local cycleMult = getVarNumeric(SYSSID, "CycleMult", 1, pdev)
-            local nextCycleDelay = getVarNumeric(SYSSID, "Interval", DEFAULT_INTERVAL, pdev)
-            if schedRunning then 
-                nextCycleDelay = getVarNumeric(SYSSID, "ActiveInterval", 30, pdev)
-            end
-            nextCycleDelay = nextCycleDelay * cycleMult
-            if nextCycleDelay < 1 then nextCycleDelay = 60 
-            elseif nextCycleDelay > MAX_INTERVAL then nextCycleDelay = MAX_INTERVAL end
-            D("tick() cycle finished, next in " .. nextCycleDelay .. " seconds, cycleMult is " .. tostring(cycleMult))
-            luup.call_delay("rachio_plugin_tick", nextCycleDelay, stepStamp)
-        end
-        return
-    end
-
-    -- Hard stop. The plugin will set pluginStatus if it has already trapped the
-    -- the error and set up all of its messages, etc., so only react here if
-    -- pluginStatus isn't set.
-    L("tick(): ptick() error: %1, aborting timer cycle.", err)
-    if err == nil or err.pluginStatus == nil then
-        -- We didn't stop because of a plugin problem, so issue our own
-        -- plugin hardFail
-        hardFail(HTTPREQ_GENERICERROR, "Offline (internal error)")
-    end
-end
-
-function actionSetDebug( devnum, newState )
-    -- Sets debug only; no trace in production/released code.
-    debugMode = (type(newState)=="number" and newState ~= 0) or newState == "1" or tostring(newState) == "true"
-    D("setTraceMode() debug mode for %2 is now %1", debugMode, devnum)
-end
-
 local function issKeyVal( k, v, s )
     if s == nil then s = {} end
     s["key"] = tostring(k)
@@ -1603,12 +1619,12 @@ local function getDevice( dev, pdev, v )
 end
 
 function requestHandler(lul_request, lul_parameters, lul_outputformat)
-    D("requestHandler(%1,%2,%3) luup.device=%4", lul_request, lul_parameters, lul_outputformat, luup.device)
+    D("requestHandler(%1,%2,%3) serviceDevice=%4", lul_request, lul_parameters, lul_outputformat, serviceDevice)
     local action = lul_parameters['action'] or lul_parameters['command'] or ""
-    local deviceNum = tonumber( lul_parameters['device'], 10 ) or luup.device
+    local deviceNum = tonumber( lul_parameters['device'], 10 ) or serviceDevice
     if action == "debug" then
-        local err,msg,job,args = luup.call_action( SYSSID, "SetDebug", { debug=1 }, deviceNum )
-        return string.format("Device #%s result: %s, %s, %s, %s", tostring(deviceNum), tostring(err), tostring(msg), tostring(job), dump(args)), "text/plain"
+        debugMode = not DebugMode
+        return "Debug is now " .. debugMode and "on" or "off", "text/plain"
     end
 
     if action:sub( 1, 3 ) == "ISS" then
@@ -1616,7 +1632,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
         local dkjson = json or require('dkjson')
         local path = lul_parameters['path'] or action:sub( 4 ) -- Work even if I'home user forgets &path=
         if path == "/system" then
-            return dkjson.encode( { id="AutoVirtualThermostat-" .. luup.pk_accesspoint, apiversion=1 } ), "application/json"
+            return dkjson.encode( { id=_PLUGIN_NAME .. "-" .. luup.pk_accesspoint, apiversion=1 } ), "application/json"
         elseif path == "/rooms" then
             local roomlist = { { id=0, name="No Room" } }
             for rn,rr in pairs( luup.rooms ) do 
@@ -1705,7 +1721,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
             author="Patrick H. Rigney (rigpapa)",
             url=_PLUGIN_URL,
             ['type']=SYSTYPE,
-            responder=luup.device,
+            responder=serviceDevice,
             timestamp=os.time(),
             system = {
                 version=luup.version,
@@ -1718,7 +1734,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
         for k,v in pairs( luup.devices ) do
             if v.device_type == SYSTYPE or v.device_type == DEVICETYPE 
                 or v.device_type == ZONETYPE or v.device_type == SCHEDULETYPE then
-                local devinfo = getDevice( k, luup.device, v ) or {}
+                local devinfo = getDevice( k, serviceDevice, v ) or {}
                 table.insert( st.devices, devinfo )
             end
         end
@@ -1728,7 +1744,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
     return "<html><head><title>" .. _PLUGIN_NAME .. " Request Handler"
         .. "</title></head><body bgcolor='white'>Request format: <tt>http://" .. (luup.attr_get( "ip", 0 ) or "...")
         .. "/port_3480/data_request?id=lr_" .. lul_request 
-        .. "&action=...</tt><p>Actions: status<br>debug&device=<i>devicenumber</i><br>ISS"
+        .. "&action=...</tt><p>Actions: status | debug | ISS"
         .. "<p>Imperihome ISS URL: <tt>...&action=ISS&path=</tt><p>Documentation: <a href='"
         .. _PLUGIN_URL .. "' target='_blank'>" .. _PLUGIN_URL .. "</a></body></html>"
         , "text/html"
