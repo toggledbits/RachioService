@@ -2,6 +2,7 @@
 
 ## Version 1.5 (stable branch) ##
 
+* Now runs on openLuup.
 * Add Enabled variable to stop plugin operation/API polling.
 * Force category/subcategory to switch/valve for zones and schedules. Having it set in the device file doesn't seem to be sufficient.
 * Implement SwitchPower1 service (rudimentary) for zones and schedules (supports category/sub).

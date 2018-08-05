@@ -28,8 +28,6 @@ local _CONFIGVERSION = 00108
 
 local debugMode = false
 
-local API_BASE = "https://api.rach.io/1"
-
 local SYSSID = "urn:toggledbits-com:serviceId:Rachio1"
 local SYSTYPE = "urn:schemas-toggledbits-com:device:Rachio:1"
 
@@ -51,6 +49,7 @@ local HTTPREQ_JSONERROR = 3
 local HTTPREQ_RATELIMIT = 4
 local HTTPREQ_GENERICERROR = 99
 
+local API_BASE = "https://api.rach.io/1" -- Default URL; can be overridden by SYSSID/APIBase
 local DEFAULT_INTERVAL = 120    -- Default interval between API polls; can be overriden by SYSSID/Interval
 local MAX_CYCLEMULT = 256       -- Max multiplier for poll interval (doubles on each error up to this number)
 local MAX_INTERVAL = 14400      -- Absolute max delay we'll allow
@@ -58,6 +57,7 @@ local MAX_INTERVAL = 14400      -- Absolute max delay we'll allow
 local runStamp = 0
 local tickCount = 0
 local lastTick = 0
+local apilimit = 1700
 local nthresh = 1360 -- threshold for API quota warnings
 local nextUpdate = 0
 local updatePending = false
@@ -66,7 +66,8 @@ local firstRun = true
 local messages = {}
 local isALTUI = false
 local isOpenLuup = false
-local serviceDevice
+local childrenByUID = {}
+local serviceDevice = 0
 
 local https = require("ssl.https")
 local http = require("socket.http")
@@ -80,7 +81,6 @@ local rateDiv = 5       -- granularity (seconds)
 local rateMax = 15      -- max per-minute rate allowed
 
 local hardFail
-local childrenByUID = {}
 
 local function formatMinutes( m )
     local h
@@ -227,15 +227,9 @@ local function getVarNumeric( serviceid, name, dflt, dev )
     return s
 end
 
--- Find the parent service device for the passed device
-local function findServicePlugin( dev )
-    return serviceDevice
-end
-
 -- Shortcut function to return state of SwitchPower1 Status variable
 local function isServiceCheck()
-    local p = findServicePlugin()
-    local s = getVarNumeric( SYSSID, "ServiceCheck", "", p )
+    local s = getVarNumeric( SYSSID, "ServiceCheck", "", serviceDevice )
     if s == "" then return true end -- default is we really don't know, so say down
     return (s ~= "0")
 end
@@ -277,8 +271,7 @@ local function resolveDevice( dev )
 end
 
 local function showServiceStatus(msg, dev)
-    dev = findServicePlugin( dev )
-    if dev == nil then dev = luup.devices end
+    dev = dev or serviceDevice
     luup.variable_set(SYSSID, "Message", msg, dev)
 end
 
@@ -286,12 +279,13 @@ local function setMessage(s, sid, dev, pri)
     if sid == nil then sid = SYSSID end
     if dev == nil then dev = serviceDevice end
     if pri == nil then pri = 0 end
-    local l = messages[dev]
+    local dk = tostring(dev)
+    local l = messages[dk]
     if l ~= nil and pri < l.pri then
         return
     end
     if s == nil then L(debug.traceback()) end
-    messages[dev] = { dev=dev, pri=pri, text=s, service=sid }
+    messages[dk] = { dev=dev, pri=pri, text=tostring(s), service=sid }
 end
 
 local function postMessages()
@@ -304,8 +298,9 @@ local function postMessages()
 end
 
 -- Find a child by Rachio's ID (UID)
-local function findChildByUID( parentId, uid )
+local function findChildByUID( uid, parentId )
   if uid == nil then return nil end
+  parentId = parentId or serviceDevice
   if childrenByUID[uid] ~= nil then return childrenByUID[uid], luup.devices[childrenByUID[uid]] end
   for k,v in pairs(luup.devices) do
     if v.device_num_parent == parentId and uid == v.id then
@@ -317,8 +312,9 @@ local function findChildByUID( parentId, uid )
 end
 
 -- Returns children matching type as (true) array of device numbers
-local function findChildrenByType( parentId, typ )
-    D("findChildrenByType(%1,%2)", parentId, typ)
+local function findChildrenByType( typ, parentId )
+    D("findChildrenByType(%1,%2)", typ, parentId)
+    parentId = parentId or serviceDevice
     assert(type(parentId)=="number")
     local result = {}
     for k,v in pairs( luup.devices ) do
@@ -331,13 +327,12 @@ end
 
 local function findZoneByNumber( nIro, zoneNumber )
     D("findZoneByNumber(%1,%2)", nIro, zoneNumber)
-    local service = findServicePlugin(nIro)
     local iro = luup.devices[nIro]
     if iro == nil then return nil end
     assert(iro.device_type == DEVICETYPE, "Device is not controller")
     D("findZoneByNumber() iro dev #%1 (%2) id is %3", nIro, iro.description, iro.id)
 
-    local zoneDevices = findChildrenByType(service, ZONETYPE)
+    local zoneDevices = findChildrenByType(ZONETYPE)
     zoneNumber = tonumber(zoneNumber,10)
     for _,devnum in ipairs(zoneDevices) do
         -- Is this zone part of the Iro we're looking for?
@@ -365,7 +360,7 @@ hardFail = function (status, msg) -- forward declared
     showServiceStatus(msg, serviceDevice)
 
     -- Set status of devices and zones?
-    local devices = findChildrenByType( serviceDevice, DEVICETYPE )
+    local devices = findChildrenByType(DEVICETYPE)
     for _,devnum in ipairs(devices) do
         setMessage("NO SERVICE", DEVICESID, devnum, 99)
         luup.variable_set(DEVICESID, "Message", "NO SERVICE", devnum)
@@ -513,7 +508,25 @@ local function getJSON(path, method, body)
 
     -- See what happened.
     -- ??? Now that we're using a sink, respBody is always 1, so maybe revisit the tests below at some point (harmless now)
-    D("getJSON() request returned httpStatus=%1, respBody=%2", httpStatus, respBody)
+    D("getJSON() request returned httpStatus=%1, respBody=%2, headers=%3", httpStatus, respBody, httpHeaders)
+    
+    -- If Rachio passes back quota info in headers (it should), update our stats.
+    if httpHeaders['x-ratelimit-limit'] then
+        apilimit = tonumber( httpHeaders['x-ratelimit-limit'] ) or apilimit
+        if httpHeaders['x-ratelimit-remaining'] then
+            local rem = tonumber(httpHeaders['x-ratelimit-remaining'])
+            if ( rem or 0 ) > 0 then
+                local count = apilimit - rem
+                local newthresh = math.floor( apilimit * 80 / 100 ) -- start warnings at 80% of quota
+                if newthresh > nthresh then nthresh = newthresh end -- only if it moves up
+                luup.variable_set( SYSSID, "DailyCalls", count, serviceDevice ) -- reset to what Rachio says
+                D("getJSON() overriding daily call count to %1 on limit of %2, from response headers",
+                    count, apilimit)
+            end
+        end
+    end
+
+    -- Shortcuts
     if httpStatus == 204 then
         -- Success response with no data, take shortcut.
         return HTTPREQ_OK, {}
@@ -549,8 +562,9 @@ local function doSchedCheck( cdn, cd, serviceDev )
     -- local status, schedule = getJSON("/public/device/" .. cd.id)
     local status, schedule = getJSON("/public/device/" .. cd.id .. "/current_schedule")
     if status == HTTPREQ_OK then
-        -- check schedule type? particulars for type?
+        -- Get our last known watering state (it may be changing)
         local watering = getVarNumeric(DEVICESID, "Watering", 0, cdn)
+        -- check schedule type? particulars for type?
         if schedule.type ~= nil then
             -- ??? check zone ID, make sure it's zone we know
             -- ??? what does multiple zone schedule report?
@@ -590,7 +604,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
             if remaining < 1 then remaining = 0 end
             D("doSchedCheck: sched start %1 dur %2 ends %3 rem %4", lastStart, durMinutes, runEnds, remaining)
             -- Now apply to schedule if known device (e.g. not a manual schedule, for which we would not have a device)
-            local csn, cs = findChildByUID( serviceDev, schedule.scheduleRuleId )
+            local csn, cs = findChildByUID( schedule.scheduleRuleId )
             if csn ~= nil then
                 D("doSchedCheck() setting schedule info for %1 (%2) remaining %3", schedule.scheduleId, cs.description, remaining)
                 schedMessage = schedMessage .. " " .. cs.description
@@ -620,7 +634,7 @@ local function doSchedCheck( cdn, cd, serviceDev )
             setMessage(schedMessage, DEVICESID, cdn, 20)
 
             -- Reset stats for (all) zones
-            local zones = findChildrenByType( serviceDev, ZONETYPE )
+            local zones = findChildrenByType(ZONETYPE)
             for _,czn in ipairs(zones) do
                 local zoneDev = getVarNumeric( DEVICESID, "ParentDevice", 0, czn)
                 if zoneDev == cdn then -- belong to this controller?
@@ -654,58 +668,53 @@ local function doSchedCheck( cdn, cd, serviceDev )
                     end
                 end
             end
-        elseif watering ~= 0 then
-            -- No running schedule now (was running previously)
-            D("doSchedCheck() schedule ended")
-            luup.variable_set(DEVICESID, "Remaining", 0, cdn)
-            luup.variable_set(DEVICESID, "Watering", 0, cdn)
-            local msg = "Enabled"
-            local schedMsg
-            if getVarNumeric( DEVICESID, "On", 0, cdn ) == 0 then
-                msg = "Standby"
-                schedMsg = "Suspended"
-            elseif getVarNumeric( DEVICESID, "Paused", 0, cdn ) ~= 0 then
-                msg = "Paused"
-                schedMsg = "Suspended"
+        else
+            local standby = getVarNumeric( DEVICESID, "On", 0, cdn ) == 0
+            local paused = getVarNumeric( DEVICESID, "Paused", 0, cdn ) ~= 0
+            setMessage( standby and "Standby" or ( paused and "Paused" or "Enabled" ), DEVICESID, cdn, 20 )
+
+            -- We were previously watering, so handle stop
+            if watering ~= 0 then
+                D("doSchedCheck() schedule ended")
+                luup.variable_set(DEVICESID, "Remaining", 0, cdn)
+                luup.variable_set(DEVICESID, "Watering", 0, cdn)
             end
-            setMessage( msg, DEVICESID, cdn, 20 )
-            
+                
             -- Mark zones idle
-            local children = findChildrenByType( serviceDev, ZONETYPE )
+            local children = findChildrenByType(ZONETYPE)
             for _,czn in ipairs(children) do
                 -- If zone belongs to this device...
                 local zoneDev = getVarNumeric( DEVICESID, "ParentDevice", 0, czn) -- N.B. device SID here
                 if zoneDev == cdn then -- this Zone belongs to this Device?
-                    D("doSchedCheck() setting idle zone info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
-                    luup.variable_set(ZONESID, "Remaining", 0, czn)
-                    luup.variable_set(ZONESID, "Watering", 0, czn)
-                    luup.variable_set(SWITCHSID, "Target", 0, czn)
-                    luup.variable_set(SWITCHSID, "Status", 0, czn)
-                    setMessage( ( getVarNumeric( ZONESID, "Enabled", 1, czn ) ~= 0 ) and "Enabled" or "Disabled",
-                            ZONESID, czn, 0 )
+                    if watering ~= 0 then
+                        D("doSchedCheck() setting idle zone info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
+                        luup.variable_set(ZONESID, "Remaining", 0, czn)
+                        luup.variable_set(ZONESID, "Watering", 0, czn)
+                        luup.variable_set(SWITCHSID, "Target", 0, czn)
+                        luup.variable_set(SWITCHSID, "Status", 0, czn)
+                    end
+                    local msg = ( standby or paused ) and "Standby" or ( ( getVarNumeric( ZONESID, "Enabled", 1, czn ) ~= 0 ) and "Enabled" or "Disabled" )
+                    setMessage( msg, ZONESID, czn, 0 )
                 end
             end
             
             -- Do same for schedules
-            children = findChildrenByType( serviceDev, SCHEDULETYPE )
+            children = findChildrenByType(SCHEDULETYPE)
             for _,czn in ipairs(children) do
                 -- If zone belongs to this device...
                 local schedDev = getVarNumeric( DEVICESID, "ParentDevice", 0, czn) -- N.B. device SID here
                 if schedDev == cdn then -- this Sched belongs to this Device?
-                    D("doSchedCheck() setting idle schedule info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
-                    luup.variable_set(SCHEDULESID, "Remaining", 0, czn)
-                    luup.variable_set(SCHEDULESID, "Watering", 0, czn)
-                    luup.variable_set(SWITCHSID, "Target", 0, czn)
-                    luup.variable_set(SWITCHSID, "Status", 0, czn)
-                    setMessage( ( getVarNumeric( SCHEDULESID, "Enabled", 1, czn ) ~= 0 ) and "Enabled" or "Disabled",
-                            SCHEDULESID, czn, 0 )
-                    if schedMsg ~= nil then
-                        setMessage( schedMsg, SCHEDULESID, czn, 20 )
+                    if watering ~= 0 then
+                        D("doSchedCheck() setting idle schedule info for #%1 (%2) %3", czn, luup.devices[czn].description, luup.devices[czn].id)
+                        luup.variable_set(SCHEDULESID, "Remaining", 0, czn)
+                        luup.variable_set(SCHEDULESID, "Watering", 0, czn)
+                        luup.variable_set(SWITCHSID, "Target", 0, czn)
+                        luup.variable_set(SWITCHSID, "Status", 0, czn)
                     end
+                    local msg = ( standby or paused ) and "Standby" or ( ( getVarNumeric( SCHEDULESID, "Enabled", 1, czn ) ~= 0 ) and "Enabled" or "Disabled" )
+                    setMessage( msg, SCHEDULESID, czn, 0 )
                 end
             end
-        else
-            D("doSchedCheck() idle")
         end
     else
         -- Error. Log this, but don't treat as hard error unless it's an auth problem.
@@ -734,7 +743,7 @@ local function doDeviceUpdate( data, serviceDev )
     -- Loop over devices
     for _,v in pairs(data.devices) do
         -- Find this device
-        local cdn = findChildByUID( serviceDev, v.id )
+        local cdn = findChildByUID( v.id )
         if cdn ~= nil then
             if v.status == nil or v.status:lower() ~= "online" then
                 setMessage("*" .. tostring(v.status), DEVICESID, cdn, 99)
@@ -774,7 +783,7 @@ local function doDeviceUpdate( data, serviceDev )
             local hide = getVarNumeric(SYSSID, "HideZones", 0, serviceDev)
             local hideDisabled = getVarNumeric(SYSSID, "HideDisabledZones", 0, serviceDev)
             for _,z in pairs(v.zones) do
-                local czn = findChildByUID( serviceDev, z.id )
+                local czn = findChildByUID( z.id )
                 if czn ~= nil then
                     local localHide = hide
                     if hideDisabled ~=0 and z.enabled == 0 then localHide = 1 end
@@ -797,7 +806,7 @@ local function doDeviceUpdate( data, serviceDev )
             hideDisabled = getVarNumeric(SYSSID, "HideDisabledSchedules", 0, serviceDev)
             for _,z in pairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
                 -- Find this device
-                local csn = findChildByUID( serviceDev, z.id )
+                local csn = findChildByUID( z.id )
                 if csn ~= nil then
                     if v.on == 0 or ( v.paused ~= nil and v.paused ~= 0 ) then
                         -- Iro is off, so we there won't be automatic watering.
@@ -861,10 +870,10 @@ local function setUpDevices(data, serviceDev)
     local ptr = luup.chdev.start(serviceDev)
 
     -- Now pass through the devices again and enumerate all the zones for each.
-    local knownDevices = map(findChildrenByType( serviceDev, DEVICETYPE ), function( index, value ) return luup.devices[value].id, true end)
+    local knownDevices = map(findChildrenByType(DEVICETYPE), function( index, value ) return luup.devices[value].id, true end)
     for _,v in pairs(data.devices) do
         D("setUpDevices(): device " .. tostring(v.id) .. " model " .. tostring(v.model))
-        local cdn = findChildByUID( serviceDev, v.id )
+        local cdn = findChildByUID( v.id )
         if cdn == nil then
             -- New device
             changes = changes + 1
@@ -881,10 +890,10 @@ local function setUpDevices(data, serviceDev)
         knownDevices[v.id] = nil
 
         -- Now go through zones for this device...
-        local knownZones = map(findChildrenByType( serviceDev, ZONETYPE ), function( index, value ) return luup.devices[value].id, true end)
+        local knownZones = map(findChildrenByType(ZONETYPE), function( index, value ) return luup.devices[value].id, true end)
         for _,z in pairs(v.zones) do
             D("setUpDevices():     zone " .. tostring(z.zoneNumber) .. " " .. tostring(z.name))
-            local czn = findChildByUID( serviceDev, z.id )
+            local czn = findChildByUID( z.id )
             if czn == nil then
                 -- New zone
                 changes = changes + 1
@@ -903,10 +912,10 @@ local function setUpDevices(data, serviceDev)
         for _ in pairs(knownZones) do changes = changes + 1 break end
 
         -- And schedules
-        local knownSchedules = map(findChildrenByType( serviceDev, SCHEDULETYPE ), function( index, value ) return luup.devices[value].id, true end)
+        local knownSchedules = map(findChildrenByType(SCHEDULETYPE), function( index, value ) return luup.devices[value].id, true end)
         for _,z in pairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
             D("setUpDevices():     schedule %1 name %2", z.id, z.name)
-            local csn = findChildByUID( serviceDev, z.id )
+            local csn = findChildByUID( z.id )
             if csn == nil then
                 -- New schedule
                 changes = changes + 1
@@ -1000,7 +1009,7 @@ local function runOnce(pdev)
     if s < 00107 then
         L("Upgrading configuration to 00107...")
         -- Convert linking variables from UDNs to device numbers
-        local l = findChildrenByType( pdev, ZONETYPE )
+        local l = findChildrenByType(ZONETYPE)
         for _,d in ipairs(l) do
             local p = luup.variable_get( DEVICESID, "ParentDevice", d ) or ""
             if p ~= "" and p:sub(0,5) == "uuid:" then
@@ -1010,7 +1019,7 @@ local function runOnce(pdev)
                 end
             end
         end
-        l = findChildrenByType( pdev, SCHEDULETYPE )
+        l = findChildrenByType(SCHEDULETYPE)
         for _,d in ipairs(l) do
             local p = luup.variable_get( DEVICESID, "ParentDevice", d ) or ""
             if p ~= "" and p:sub(0,5) == "uuid:" then
@@ -1080,6 +1089,7 @@ function start(pdev)
     L("starting plugin version %2 device %1", pdev, _PLUGIN_VERSION)
     pdev = tonumber(pdev or "" ,10)
     
+    A( serviceDevice==0, "Another instance of the service is running!" )
     serviceDevice = pdev
 
     -- Check for ALTUI and OpenLuup
@@ -1246,7 +1256,7 @@ local function ptick(pdev, forced)
         -- N.B. Schedule check for each device is one query per...
         if not problem then
             -- Check schedule on each controller
-            local devices = findChildrenByType( pdev, DEVICETYPE )
+            local devices = findChildrenByType(DEVICETYPE)
             for _,d in pairs(devices) do 
                 D("ptick() doing schedule check on %1 (%2)", d, luup.devices[d].description)
                 if not doSchedCheck( d, nil, pdev ) then 
@@ -1303,7 +1313,7 @@ function tick(stepStampCheck)
     D("tick() running serviceDevice=%2, tickCount=%1", tickCount, serviceDevice)
 
     -- Check last tick time. If too soon, skip this
-    local tooSoon = (lastTick + 30) > os.time()
+    local tooSoon = (lastTick + 5) > os.time()
     lastTick = os.time()
 
     -- Use pcall() to run the plugin's stuff. If it fails, we stay in control.
@@ -1346,18 +1356,14 @@ function tick(stepStampCheck)
     end
 end
 
-local function forceUpdate( devnum )
-    if luup.devices[devnum].device_type == DEVICETYPE then
-        luup.variable_set(DEVICESID, "Message", "---", devnum) -- direct
+local function startJob( devnum )
+    if (luup.devices[devnum] or {}).device_type == DEVICETYPE then
+        luup.variable_set(DEVICESID, "Message", "Operation pending... please wait", devnum) -- direct
     end
-    if not updatePending then
-        updatePending = true
-        ptick( serviceDevice )
-        updatePending = false
-        scheduleUpdate( getVarNumeric(SYSSID, "ActiveInterval", 30, serviceDevice) )
-    else
-        D("forceUpdate() an update is already pending")
-    end
+end
+
+local function finishJob( devnum )
+    scheduleUpdate( 10, true )
 end
 
 function rachioServiceHideZones( devnum, hideAll, hideDisabled )
@@ -1375,7 +1381,7 @@ function rachioServiceHideZones( devnum, hideAll, hideDisabled )
 
     hideAll = getVarNumeric(SYSSID, "HideZones", 0, devnum)
     hideDisabled = getVarNumeric(SYSSID, "HideDisabledZones", 0, devnum)
-    local ch = findChildrenByType( devnum, ZONETYPE )
+    local ch = findChildrenByType(ZONETYPE)
     for _,zoneDev in pairs(ch) do
         local hideThis = hideAll
         if hideDisabled ~= 0 then
@@ -1401,7 +1407,7 @@ function rachioServiceHideSchedules( devnum, hideAll, hideDisabled )
 
     hideAll = getVarNumeric(SYSSID, "HideSchedules", 0, devnum)
     hideDisabled = getVarNumeric(SYSSID, "HideDisabledSchedules", 0, devnum)
-    local ch = findChildrenByType( devnum, SCHEDULETYPE )
+    local ch = findChildrenByType(SCHEDULETYPE)
     for _,schedDev in pairs(ch) do
         local hideThis = hideAll
         if hideDisabled ~= 0 then
@@ -1426,15 +1432,13 @@ end
 function rachioDeviceStop( devnum )
     D("rachioDeviceStop(%1)", devnum)
 
-    local d = luup.devices[ devnum ]
+    startJob(devnum)
+    local d = luup.devices[ devnum ] or {}
     L("Stop watering request on %1 (%2)", devnum, d.description)
     local status,resp = getJSON("/public/device/stop_water", "PUT", { id=d.id })
     D("rachioDeviceStop() getJSON returned %1,%2", status,resp)
-    if status == HTTPREQ_OK then
-        forceUpdate(devnum)
-        return true
-    end
-    return false
+    finishJob(devnum)
+    return status == HTTPREQ_OK
 end
 
 -- Tell Rachio to turn device features off
@@ -1442,15 +1446,13 @@ function rachioDeviceOff( devnum )
     D("rachioDeviceOff(%1)", devnum)
 
     -- Call API to turn off controller
-    local d = luup.devices[ devnum ]
+    startJob(devnum)
+    local d = luup.devices[ devnum ] or {}
     L("Request for controller standby %1 (%2)", devnum, d.description)
     local status,resp = getJSON("/public/device/off", "PUT", { id=d.id })
     D("rachioDeviceOff() getJSON returned %1,%2", status,resp)
-    if status == HTTPREQ_OK then
-        forceUpdate(devnum)
-        return true
-    end
-    return false
+    finishJob(devnum)
+    return status == HTTPREQ_OK
 end
 
 -- Tell Rachio to turn device features on
@@ -1458,20 +1460,19 @@ function rachioDeviceOn( devnum )
     D("rachioDeviceOn(%1)", devnum)
 
     -- Call API to turn on controller
-    local d = luup.devices[ devnum ]
+    startJob(devnum)
+    local d = luup.devices[ devnum ] or {}
     L("Request for controller active %1 (%2)", devnum, d.description)
     local status,resp = getJSON("/public/device/on", "PUT", { id=d.id })
     D("rachioDeviceOn() getJSON returned %1,%2", status,resp)
-    if status == HTTPREQ_OK then
-        forceUpdate(devnum)
-        return true
-    end
-    return false
+    finishJob(devnum)
+    return status == HTTPREQ_OK
 end
 
 function rachioStartMultiZone( devnum, zoneData )
     D("rachioStartMultiZone(%1,%2)", devnum, zoneData)
 
+    startJob(devnum)
     local req = { zones={} }
     local z = split( zoneData, "," )
     local n = 0
@@ -1494,17 +1495,18 @@ function rachioStartMultiZone( devnum, zoneData )
         D("rachioStartMultiZone() getJSON returned %1,%2", status,resp)
         if status == HTTPREQ_OK then
             schedRunning = true
-            forceUpdate(devnum)
-            return true
         end
     end
-    return false
+    finishJob(devnum)
+    return true
 end
 
 -- Tell Rachio to start watering a zone
 function rachioStartZone( devnum, durMinutes )
     D("rachioStartZone(%1,%2)", devnum, durMinutes)
 
+    local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
+    startJob(controller)
     if durMinutes == nil then durMinutes = 0 end
     durMinutes = tonumber(durMinutes,10)
     if durMinutes < 0 then durMinutes = 0 elseif durMinutes > 180 then durMinutes = 180 end
@@ -1515,45 +1517,42 @@ function rachioStartZone( devnum, durMinutes )
     local status,resp = getJSON("/public/zone/start", "PUT", { id=d.id, duration=durMinutes*60 })
     D("rachioStartZone() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
-        local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
         luup.variable_set(SWITCHSID, "Target", 1, devnum)
         schedRunning = true
-        forceUpdate(controller)
-        return true
     end
-    return false
+    finishJob(controller)
+    return status == HTTPREQ_OK
 end
 
 -- Tell Rachio to start a schedule
 function rachioRunSchedule( devnum )
     D("rachioRunSchedule(%1)", devnum)
 
-    local d = luup.devices[ devnum ]
+    local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
+    startJob(controller)
+    local d = luup.devices[ devnum ] or {}
     L("Requesting manual schedule start %1 (%2)", d.description, d.id)
     local status,resp = getJSON("/public/schedulerule/start", "PUT", { id=d.id })
     D("rachioRunSchedule() getJSON returned %1,%2", status,resp)
     if status == HTTPREQ_OK then
-        local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
         luup.variable_set(SWITCHSID, "Target", 1, devnum)
         schedRunning = true
-        forceUpdate(controller)
-        return true
     end
-    return false
+    finishJob(controller)
+    return status == HTTPREQ_OK
 end
 
 -- Tell Rachio to skip a schedule
 function rachioSkipSchedule( devnum )
     D("rachioSkipSchedule(%1)", devnum)
 
-    local d = luup.devices[ devnum ]
+    local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
+    startJob(controller)
+    local d = luup.devices[ devnum ] or {}
     local status,resp = getJSON("/public/schedulerule/skip", "PUT", { id=d.id })
     D("rachioSkipSchedule() getJSON returned %1,%2", status,resp)
-    if status == HTTPREQ_OK then
-        forceUpdate(devnum)
-        return true
-    end
-    return false
+    finishJob(controller)
+    return status == HTTPREQ_OK
 end
 
 -- Switch Status
@@ -1562,12 +1561,13 @@ function rachioSwitchSetTarget( devnum, newtarget )
     newtarget = tonumber(newtarget) or 0
     if newtarget == 0 then
         local controller = getVarNumeric( DEVICESID, "ParentDevice", 0, devnum )
-        rachioDeviceStop( controller )
+        return rachioDeviceStop( controller )
     elseif luup.devices[devnum].device_type == ZONETYPE then
-        rachioStartZone( devnum, 3 )
+        return rachioStartZone( devnum, 3 )
     elseif luup.devices[devnum].device_type == SCHEDULETYPE then
-        rachioRunSchedule( devnum )
+        return rachioRunSchedule( devnum )
     end
+    return false
 end
 
 function rachioSetDebug( devnum, enable )
