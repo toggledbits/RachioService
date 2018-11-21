@@ -23,6 +23,12 @@
             <defaultValue>0</defaultValue>
             <shortCode>remaining</shortCode>
         </stateVariable>
+        <stateVariable sendEvents="yes">
+            <name>Duration</name>
+            <dataType>ui4</dataType>
+            <defaultValue>0</defaultValue>
+            <shortCode>duration</shortCode>
+        </stateVariable>
     </serviceStateTable>
     <actionList>
         <action>
@@ -31,6 +37,7 @@
                 <argument>
                     <name>durationMinutes</name>
                     <direction>in</direction>
+                    <relatedStateVariable>Duration</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>
