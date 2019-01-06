@@ -2,6 +2,7 @@
 
 ## Version 1.5 (develop branch) ##
 
+* Upgrade detection of AltUI so we don't falsely detect when bridged (on "real" device triggers AltUI feature registration).
 * Now runs on openLuup.
 * Add Enabled variable to stop plugin operation/API polling.
 * Force category/subcategory to switch/valve for zones and schedules. Having it set in the device file doesn't seem to be sufficient.
