@@ -511,7 +511,7 @@ local function getJSON(path, method, body)
     D("getJSON() request returned httpStatus=%1, respBody=%2, headers=%3", httpStatus, respBody, httpHeaders)
     
     -- If Rachio passes back quota info in headers (it should), update our stats.
-    if httpHeaders['x-ratelimit-limit'] then
+    if ( httpHeaders or {} )['x-ratelimit-limit'] then
         apilimit = tonumber( httpHeaders['x-ratelimit-limit'] ) or apilimit
         if httpHeaders['x-ratelimit-remaining'] then
             local rem = tonumber(httpHeaders['x-ratelimit-remaining'])
