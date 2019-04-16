@@ -22,7 +22,7 @@ module("L_Rachio1", package.seeall)
 
 local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.5stable-180805"
+local _PLUGIN_VERSION = "1.5stable-19106"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 00108
 
@@ -511,7 +511,7 @@ local function getJSON(path, method, body)
     D("getJSON() request returned httpStatus=%1, respBody=%2, headers=%3", httpStatus, respBody, httpHeaders)
     
     -- If Rachio passes back quota info in headers (it should), update our stats.
-    if httpHeaders['x-ratelimit-limit'] then
+    if ( httpHeaders or {} )['x-ratelimit-limit'] then
         apilimit = tonumber( httpHeaders['x-ratelimit-limit'] ) or apilimit
         if httpHeaders['x-ratelimit-remaining'] then
             local rem = tonumber(httpHeaders['x-ratelimit-remaining'])
@@ -1094,7 +1094,7 @@ function start(pdev)
 
     -- Check for ALTUI and OpenLuup
     for k,v in pairs(luup.devices) do
-        if v.device_type == "urn:schemas-upnp-org:device:altui:1" then
+        if v.device_type == "urn:schemas-upnp-org:device:altui:1" and v.device_num_parent == 0 then
             D("start() detected ALTUI at %1", k)
             isALTUI = true
             local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",

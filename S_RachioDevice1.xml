@@ -82,6 +82,7 @@
                 <argument>
                     <name>newRainDelay</name>
                     <direction>in</direction>
+                    <relatedStateVariable>RainDelay</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>
