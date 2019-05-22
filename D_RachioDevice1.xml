@@ -1,25 +1,25 @@
 <?xml version="1.0"?>
 <root xmlns="urn:schemas-upnp-org:device-1-0">
-    <specVersion>
-        <major>1</major>
-        <minor>0</minor>
-    </specVersion>
-    <device>
-        <deviceType>urn:schemas-toggledbits-com:device:RachioDevice:1</deviceType>
-        <friendlyName>Rachio Device</friendlyName>
-        <handleChildren>1</handleChildren>
-        <staticJson>D_RachioDevice1.json</staticJson>
-        <serviceList>
-            <service>
-                <serviceType>urn:schemas-toggledbits-com:service:RachioDevice:1</serviceType>
-                <serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
-                <SCPDURL>S_RachioDevice1.xml</SCPDURL>
-            </service>
-            <service>
-                <serviceType>urn:schemas-micasaverde-com:service:HaDevice:1</serviceType>
-                <serviceId>urn:micasaverde-com:serviceId:HaDevice1</serviceId>
-                <SCPDURL>S_HaDevice1.xml</SCPDURL>
-            </service>
-        </serviceList>
-    </device>
+	<specVersion>
+		<major>1</major>
+		<minor>0</minor>
+	</specVersion>
+	<device>
+		<deviceType>urn:schemas-toggledbits-com:device:RachioDevice:1</deviceType>
+		<friendlyName>Rachio Device</friendlyName>
+		<handleChildren>1</handleChildren>
+		<staticJson>D_RachioDevice1.json</staticJson>
+		<serviceList>
+			<service>
+				<serviceType>urn:schemas-toggledbits-com:service:RachioDevice:1</serviceType>
+				<serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
+				<SCPDURL>S_RachioDevice1.xml</SCPDURL>
+			</service>
+			<service>
+				<serviceType>urn:schemas-micasaverde-com:service:HaDevice:1</serviceType>
+				<serviceId>urn:micasaverde-com:serviceId:HaDevice1</serviceId>
+				<SCPDURL>S_HaDevice1.xml</SCPDURL>
+			</service>
+		</serviceList>
+	</device>
 </root>

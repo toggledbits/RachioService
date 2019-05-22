@@ -1,521 +1,520 @@
 {
-    "_comment": [
-        "This file is part of the Rachio Plugin for Vera",
-        "Copyright 2017 Patrick H. Rigney, All Rights Reserved",
-        "$Id$"
-    ],
-    "default_icon": "https://www.toggledbits.com/assets/rachio/rachio-plugin-ok-60x60.png",
-    "state_icons": [{
-            "img": "https://www.toggledbits.com/assets/rachio/rachio-plugin-ok-60x60.png",
-            "conditions": [{
-                "service": "urn:toggledbits-com:serviceId:Rachio1",
-                "variable": "ServiceCheck",
-                "operator": "==",
-                "value": 0,
-                "subcategory_num": 0
-            }]
-        },
-        {
-            "img": "https://www.toggledbits.com/assets/rachio/rachio-plugin-attn-60x60.png",
-            "conditions": [{
-                "service": "urn:toggledbits-com:serviceId:Rachio1",
-                "variable": "ServiceCheck",
-                "operator": "!=",
-                "value": 0,
-                "subcategory_num": 0
-            }]
-        }
-    ],
-    "x": 2,
-    "y": 4,
-    "inScene": 0,
-    "Tabs": [{
-            "Label": {
-                "lang_tag": "tabname_control",
-                "text": "Settings"
-            },
-            "Position": 0,
-            "TabType": "flash",
-            "top_navigation_tab": 1,
-            "ControlGroup": [{
-                "id": 1,
-                "isSingle": 1,
-                "scenegroup": 1
-            }],
-            "SceneGroup": [{
-                "id": 1,
-                "top": "0.5",
-                "left": 0,
-                "x": 2,
-                "y": 3
-            }],
-            "Control": [{
-                    "ControlGroup": 1,
-                    "ControlType": "variable",
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                        "Variable": "Message",
-                        "Top": 16,
-                        "Left": 0,
-                        "Width": 400,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "Label": {
-                        "lang_tag": "device_settings_page",
-                        "text": "API Key"
-                    },
-                    "Display": {
-                        "Top": 40,
-                        "Left": 5,
-                        "Width": 120,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "variable",
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                        "Variable": "APIKey",
-                        "Top": 40,
-                        "Left": 60,
-                        "Width": 240,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "input",
-                    "ID": "apikey",
-                    "Display": {
-                        "Top": 64,
-                        "Left": 60,
-                        "Width": 300,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "button",
-                    "Label": {
-                        "lang_tag": "cmd_set",
-                        "text": "Set"
-                    },
-                    "Display": {
-                        "Top": 64,
-                        "Left": 368,
-                        "Width": 60,
-                        "Height": 24
-                    },
-                    "Command": {
-                        "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                        "Action": "SetAPIKey",
-                        "Parameters": [{
-                            "Name": "newAPIKey",
-                            "ID": "apikey"
-                        }]
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "Label": {
-                        "lang_tag": "tb_rachiodevice_about",
-                        "text": "<a href=\"http://www.toggledbits.com/rachio\" target=\"_blank\">How to find your API key</a>"
-                    },
-                    "Display": {
-                        "Top": 96,
-                        "Left": 60,
-                        "Width": 200,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "Label": {
-                        "lang_tag": "tb_rachio_labelshowhide",
-                        "text": "After changing the settings below, it may be necessary to refresh your browser to get the display to update properly."
-                    },
-                    "Display": {
-                        "Top": 120,
-                        "Left": 5,
-                        "Width": 600,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "text_align": "right",
-                    "Label": {
-                        "lang_tag": "tb_rachio_labelshowzones",
-                        "text": "Hide All Zones:"
-                    },
-                    "Display": {
-                        "Top": 164,
-                        "Left": 5,
-                        "Width": 115,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "multi_state_button",
-                    "top": 0,
-                    "left": 1,
-                    "Display": {
-                        "Top": 152,
-                        "Left": 128,
-                        "Width": 96,
-                        "Height": 48
-                    },
-                    "states": [{
-                        "Label": {
-                            "lang_tag": "cmd_hide_zones",
-                            "text": "Hide"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideZones",
-                            "Value": 1
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideZones",
-                            "Parameters": [{
-                                "Name": "newHideValue",
-                                "Value": 1
-                            }]
-                        },
-                        "ControlCode": "zoneshide"
-                    }, {
-                        "Label": {
-                            "lang_tag": "cmd_show_zones",
-                            "text": "Show"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideZones",
-                            "Value": 0
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideZones",
-                            "Parameters": [{
-                                "Name": "newHideValue",
-                                "Value": 0
-                            }]
-                        },
-                        "ControlCode": "zonesshow"
-                    }]
-                },
-                {
-                    "ControlType": "label",
-                    "text_align": "right",
-                    "Label": {
-                        "lang_tag": "tb_rachio_labelshowschedules",
-                        "text": "Hide All Schedules:"
-                    },
-                    "Display": {
-                        "Top": 164,
-                        "Left": 208,
-                        "Width": 136,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "multi_state_button",
-                    "top": 0,
-                    "left": 1,
-                    "Display": {
-                        "Top": 152,
-                        "Left": 352,
-                        "Width": 96,
-                        "Height": 48
-                    },
-                    "states": [{
-                        "Label": {
-                            "lang_tag": "cmd_hide_schedules",
-                            "text": "Hide"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideSchedules",
-                            "Value": 1
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideSchedules",
-                            "Parameters": [{
-                                "Name": "newHideValue",
-                                "Value": 1
-                            }]
-                        },
-                        "ControlCode": "scheduleshide"
-                    }, {
-                        "Label": {
-                            "lang_tag": "cmd_show_schedules",
-                            "text": "Show"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideSchedules",
-                            "Value": 0
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideSchedules",
-                            "Parameters": [{
-                                "Name": "newHideValue",
-                                "Value": 0
-                            }]
-                        },
-                        "ControlCode": "schedulesshow"
-                    }]
-                },
-                {
-                    "ControlType": "label",
-                    "text_align": "right",
-                    "Label": {
-                        "lang_tag": "tb_rachio_labelhidedisabledzones",
-                        "text": "Hide Disabled Zones:"
-                    },
-                    "Display": {
-                        "Top": 212,
-                        "Left": 5,
-                        "Width": 115,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "multi_state_button",
-                    "top": 0,
-                    "left": 1,
-                    "Display": {
-                        "Top": 200,
-                        "Left": 128,
-                        "Width": 96,
-                        "Height": 48
-                    },
-                    "states": [{
-                        "Label": {
-                            "lang_tag": "cmd_hide_disabledzones",
-                            "text": "Hide"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideDisabledZones",
-                            "Value": 1
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideZones",
-                            "Parameters": [{
-                                "Name": "newHideDisabledValue",
-                                "Value": 1
-                            }]
-                        },
-                        "ControlCode": "disabledzoneshide"
-                    }, {
-                        "Label": {
-                            "lang_tag": "cmd_show_disabledzones",
-                            "text": "Show"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideDisabledZones",
-                            "Value": 0
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideZones",
-                            "Parameters": [{
-                                "Name": "newHideDisabledValue",
-                                "Value": 0
-                            }]
-                        },
-                        "ControlCode": "disabledzonesshow"
-                    }]
-                },
-                {
-                    "ControlType": "label",
-                    "text_align": "right",
-                    "Label": {
-                        "lang_tag": "tb_rachio_labelshowdisabledschedules",
-                        "text": "Hide Disabled Schedules:"
-                    },
-                    "Display": {
-                        "Top": 212,
-                        "Left": 208,
-                        "Width": 136,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "multi_state_button",
-                    "top": 0,
-                    "left": 1,
-                    "Display": {
-                        "Top": 200,
-                        "Left": 352,
-                        "Width": 96,
-                        "Height": 48
-                    },
-                    "states": [{
-                        "Label": {
-                            "lang_tag": "cmd_hide_disabledschedules",
-                            "text": "Hide"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideDisabledSchedules",
-                            "Value": 1
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideSchedules",
-                            "Parameters": [{
-                                "Name": "newHideDisabledValue",
-                                "Value": 1
-                            }]
-                        },
-                        "ControlCode": "disabledscheduleshide"
-                    }, {
-                        "Label": {
-                            "lang_tag": "cmd_show_disabledschedules",
-                            "text": "Show"
-                        },
-                        "Display": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Variable": "HideDisabledSchedules",
-                            "Value": 0
-                        },
-                        "Command": {
-                            "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                            "Action": "SetHideSchedules",
-                            "Parameters": [{
-                                "Name": "newHideDisabledValue",
-                                "Value": 0
-                            }]
-                        },
-                        "ControlCode": "disabledschedulesshow"
-                    }]
-                },
-                {
-                    "ControlType": "button",
-                    "HorizontalMultiplier": 3,
-                    "Label": {
-                        "lang_tag": "cmd_reset",
-                        "text": "Reset Service"
-                    },
-                    "Display": {
-                        "Top": 260,
-                        "Left": 5,
-                        "Width": 160,
-                        "Height": 24
-                    },
-                    "Command": {
-                        "Service": "urn:toggledbits-com:serviceId:Rachio1",
-                        "Action": "ServiceReset",
-                        "Parameters": []
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "Label": {
-                        "lang_tag": "tb_rachio_about",
-                        "text": "WARNING! <em>Reset Service</em> should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.5stable-19106 &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>. Support links: <a href=\"/port_3480/data_request?id=lr_Rachio&action=status\" target=\"_blank\">status</a> &#149; <a href=\"/port_3480/data_request?id=lr_Rachio&action=debug\" target=\"_blank\">debug on</a>"
-                    },
-                    "Display": {
-                        "Top": 292,
-                        "Left": 5,
-                        "Width": 320,
-                        "Height": 96
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "top": 0,
-                    "left": 0,
-                    "Label": {
-                        "lang_tag": "tb_rachio_donate",
-                        "text": "<b>Find the Rachio plug-in useful?</b> Please consider supporting the project with <a href=\"https://www.toggledbits.com/donate\" target=\"_blank\">a small donation</a>. I am grateful for any support you choose to give!"
-                    },
-                    "Display": {
-                        "Top": 384,
-                        "Left": 5,
-                        "Width": 320,
-                        "Height": 96
-                    }
-                }
-            ]
-        },
-        {
-            "Label": {
-                "lang_tag": "advanced",
-                "text": "Advanced"
-            },
-            "Position": 1,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "advanced_device"
-        },
-        {
-            "Label": {
-                "lang_tag": "logs",
-                "text": "Logs"
-            },
-            "Position": 2,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "device_logs"
-        },
-        {
-            "Label": {
-                "lang_tag": "notifications",
-                "text": "Notifications"
-            },
-            "Position": 3,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "device_notifications"
-        },
-        {
-            "Label": {
-                "lang_tag": "device_scenes",
-                "text": "Scenes"
-            },
-            "Position": 4,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "device_scenes"
-        }
-    ],
-    "eventList2": [{
-            "id": 1,
-            "label": {
-                "lang_tag": "tb_ev_rachioservice_is_online",
-                "text": "Whenever _DEVICE_NAME_ is online"
-            },
-            "serviceId": "urn:toggledbits-com:serviceId:Rachio1",
-            "serviceStateTable": {
-                "ServiceCheck": {
-                    "value": 0,
-                    "comparisson": "="
-                }
-            }
-        },
-        {
-            "id": 2,
-            "label": {
-                "lang_tag": "tb_ev_rachioservice_is_offline",
-                "text": "Whenever _DEVICE_NAME_ is offline"
-            },
-            "serviceId": "urn:toggledbits-com:serviceId:Rachio1",
-            "serviceStateTable": {
-                "On": {
-                    "value": 0,
-                    "comparisson": ">"
-                }
-            }
-        }
-    ],
-    "device_type": "urn:schemas-toggledbits-com:device:Rachio:1"
+	"_comment": [
+		"D_Rachio1.json",
+		"Copyright 2017,2018 Patrick H. Rigney, All Rights Reserved"
+	],
+	"default_icon": "https://www.toggledbits.com/assets/rachio/rachio-plugin-ok-60x60.png",
+	"state_icons": [{
+			"img": "https://www.toggledbits.com/assets/rachio/rachio-plugin-ok-60x60.png",
+			"conditions": [{
+				"service": "urn:toggledbits-com:serviceId:Rachio1",
+				"variable": "ServiceCheck",
+				"operator": "==",
+				"value": 0,
+				"subcategory_num": 0
+			}]
+		},
+		{
+			"img": "https://www.toggledbits.com/assets/rachio/rachio-plugin-attn-60x60.png",
+			"conditions": [{
+				"service": "urn:toggledbits-com:serviceId:Rachio1",
+				"variable": "ServiceCheck",
+				"operator": "!=",
+				"value": 0,
+				"subcategory_num": 0
+			}]
+		}
+	],
+	"x": 2,
+	"y": 4,
+	"inScene": 0,
+	"Tabs": [{
+			"Label": {
+				"lang_tag": "tabname_control",
+				"text": "Settings"
+			},
+			"Position": 0,
+			"TabType": "flash",
+			"top_navigation_tab": 1,
+			"ControlGroup": [{
+				"id": 1,
+				"isSingle": 1,
+				"scenegroup": 1
+			}],
+			"SceneGroup": [{
+				"id": 1,
+				"top": "0.5",
+				"left": 0,
+				"x": 2,
+				"y": 3
+			}],
+			"Control": [{
+					"ControlGroup": 1,
+					"ControlType": "variable",
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:Rachio1",
+						"Variable": "Message",
+						"Top": 16,
+						"Left": 0,
+						"Width": 400,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"Label": {
+						"lang_tag": "device_settings_page",
+						"text": "API Key"
+					},
+					"Display": {
+						"Top": 40,
+						"Left": 5,
+						"Width": 120,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "variable",
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:Rachio1",
+						"Variable": "APIKey",
+						"Top": 40,
+						"Left": 60,
+						"Width": 240,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "input",
+					"ID": "apikey",
+					"Display": {
+						"Top": 64,
+						"Left": 60,
+						"Width": 300,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "button",
+					"Label": {
+						"lang_tag": "cmd_set",
+						"text": "Set"
+					},
+					"Display": {
+						"Top": 64,
+						"Left": 368,
+						"Width": 60,
+						"Height": 24
+					},
+					"Command": {
+						"Service": "urn:toggledbits-com:serviceId:Rachio1",
+						"Action": "SetAPIKey",
+						"Parameters": [{
+							"Name": "newAPIKey",
+							"ID": "apikey"
+						}]
+					}
+				},
+				{
+					"ControlType": "label",
+					"Label": {
+						"lang_tag": "tb_rachiodevice_about",
+						"text": "<a href=\"http://www.toggledbits.com/rachio\" target=\"_blank\">How to find your API key</a>"
+					},
+					"Display": {
+						"Top": 96,
+						"Left": 60,
+						"Width": 200,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"Label": {
+						"lang_tag": "tb_rachio_labelshowhide",
+						"text": "After changing the settings below, it may be necessary to refresh your browser to get the display to update properly."
+					},
+					"Display": {
+						"Top": 120,
+						"Left": 5,
+						"Width": 600,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"text_align": "right",
+					"Label": {
+						"lang_tag": "tb_rachio_labelshowzones",
+						"text": "Hide All Zones:"
+					},
+					"Display": {
+						"Top": 164,
+						"Left": 5,
+						"Width": 115,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "multi_state_button",
+					"top": 0,
+					"left": 1,
+					"Display": {
+						"Top": 152,
+						"Left": 128,
+						"Width": 96,
+						"Height": 48
+					},
+					"states": [{
+						"Label": {
+							"lang_tag": "cmd_hide_zones",
+							"text": "Hide"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideZones",
+							"Value": 1
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideZones",
+							"Parameters": [{
+								"Name": "newHideValue",
+								"Value": 1
+							}]
+						},
+						"ControlCode": "zoneshide"
+					}, {
+						"Label": {
+							"lang_tag": "cmd_show_zones",
+							"text": "Show"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideZones",
+							"Value": 0
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideZones",
+							"Parameters": [{
+								"Name": "newHideValue",
+								"Value": 0
+							}]
+						},
+						"ControlCode": "zonesshow"
+					}]
+				},
+				{
+					"ControlType": "label",
+					"text_align": "right",
+					"Label": {
+						"lang_tag": "tb_rachio_labelshowschedules",
+						"text": "Hide All Schedules:"
+					},
+					"Display": {
+						"Top": 164,
+						"Left": 208,
+						"Width": 136,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "multi_state_button",
+					"top": 0,
+					"left": 1,
+					"Display": {
+						"Top": 152,
+						"Left": 352,
+						"Width": 96,
+						"Height": 48
+					},
+					"states": [{
+						"Label": {
+							"lang_tag": "cmd_hide_schedules",
+							"text": "Hide"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideSchedules",
+							"Value": 1
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideSchedules",
+							"Parameters": [{
+								"Name": "newHideValue",
+								"Value": 1
+							}]
+						},
+						"ControlCode": "scheduleshide"
+					}, {
+						"Label": {
+							"lang_tag": "cmd_show_schedules",
+							"text": "Show"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideSchedules",
+							"Value": 0
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideSchedules",
+							"Parameters": [{
+								"Name": "newHideValue",
+								"Value": 0
+							}]
+						},
+						"ControlCode": "schedulesshow"
+					}]
+				},
+				{
+					"ControlType": "label",
+					"text_align": "right",
+					"Label": {
+						"lang_tag": "tb_rachio_labelhidedisabledzones",
+						"text": "Hide Disabled Zones:"
+					},
+					"Display": {
+						"Top": 212,
+						"Left": 5,
+						"Width": 115,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "multi_state_button",
+					"top": 0,
+					"left": 1,
+					"Display": {
+						"Top": 200,
+						"Left": 128,
+						"Width": 96,
+						"Height": 48
+					},
+					"states": [{
+						"Label": {
+							"lang_tag": "cmd_hide_disabledzones",
+							"text": "Hide"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideDisabledZones",
+							"Value": 1
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideZones",
+							"Parameters": [{
+								"Name": "newHideDisabledValue",
+								"Value": 1
+							}]
+						},
+						"ControlCode": "disabledzoneshide"
+					}, {
+						"Label": {
+							"lang_tag": "cmd_show_disabledzones",
+							"text": "Show"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideDisabledZones",
+							"Value": 0
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideZones",
+							"Parameters": [{
+								"Name": "newHideDisabledValue",
+								"Value": 0
+							}]
+						},
+						"ControlCode": "disabledzonesshow"
+					}]
+				},
+				{
+					"ControlType": "label",
+					"text_align": "right",
+					"Label": {
+						"lang_tag": "tb_rachio_labelshowdisabledschedules",
+						"text": "Hide Disabled Schedules:"
+					},
+					"Display": {
+						"Top": 212,
+						"Left": 208,
+						"Width": 136,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "multi_state_button",
+					"top": 0,
+					"left": 1,
+					"Display": {
+						"Top": 200,
+						"Left": 352,
+						"Width": 96,
+						"Height": 48
+					},
+					"states": [{
+						"Label": {
+							"lang_tag": "cmd_hide_disabledschedules",
+							"text": "Hide"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideDisabledSchedules",
+							"Value": 1
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideSchedules",
+							"Parameters": [{
+								"Name": "newHideDisabledValue",
+								"Value": 1
+							}]
+						},
+						"ControlCode": "disabledscheduleshide"
+					}, {
+						"Label": {
+							"lang_tag": "cmd_show_disabledschedules",
+							"text": "Show"
+						},
+						"Display": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Variable": "HideDisabledSchedules",
+							"Value": 0
+						},
+						"Command": {
+							"Service": "urn:toggledbits-com:serviceId:Rachio1",
+							"Action": "SetHideSchedules",
+							"Parameters": [{
+								"Name": "newHideDisabledValue",
+								"Value": 0
+							}]
+						},
+						"ControlCode": "disabledschedulesshow"
+					}]
+				},
+				{
+					"ControlType": "button",
+					"HorizontalMultiplier": 3,
+					"Label": {
+						"lang_tag": "cmd_reset",
+						"text": "Reset Service"
+					},
+					"Display": {
+						"Top": 260,
+						"Left": 5,
+						"Width": 160,
+						"Height": 24
+					},
+					"Command": {
+						"Service": "urn:toggledbits-com:serviceId:Rachio1",
+						"Action": "ServiceReset",
+						"Parameters": []
+					}
+				},
+				{
+					"ControlType": "label",
+					"Label": {
+						"lang_tag": "tb_rachio_about",
+						"text": "WARNING! <em>Reset Service</em> should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.5develop-19142 &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>. Support links: <a href=\"/port_3480/data_request?id=lr_Rachio&action=status\" target=\"_blank\">status</a> &#149; <a href=\"/port_3480/data_request?id=lr_Rachio&action=debug\" target=\"_blank\">debug on</a>"
+					},
+					"Display": {
+						"Top": 292,
+						"Left": 5,
+						"Width": 320,
+						"Height": 96
+					}
+				},
+				{
+					"ControlType": "label",
+					"top": 0,
+					"left": 0,
+					"Label": {
+						"lang_tag": "tb_rachio_donate",
+						"text": "<b>Find the Rachio plug-in useful?</b> Please consider supporting the project with <a href=\"https://www.toggledbits.com/donate\" target=\"_blank\">a small donation</a>. I am grateful for any support you choose to give!"
+					},
+					"Display": {
+						"Top": 384,
+						"Left": 5,
+						"Width": 320,
+						"Height": 96
+					}
+				}
+			]
+		},
+		{
+			"Label": {
+				"lang_tag": "advanced",
+				"text": "Advanced"
+			},
+			"Position": 1,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "advanced_device"
+		},
+		{
+			"Label": {
+				"lang_tag": "logs",
+				"text": "Logs"
+			},
+			"Position": 2,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "device_logs"
+		},
+		{
+			"Label": {
+				"lang_tag": "notifications",
+				"text": "Notifications"
+			},
+			"Position": 3,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "device_notifications"
+		},
+		{
+			"Label": {
+				"lang_tag": "device_scenes",
+				"text": "Scenes"
+			},
+			"Position": 4,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "device_scenes"
+		}
+	],
+	"eventList2": [{
+			"id": 1,
+			"label": {
+				"lang_tag": "tb_ev_rachioservice_is_online",
+				"text": "Whenever _DEVICE_NAME_ is online"
+			},
+			"serviceId": "urn:toggledbits-com:serviceId:Rachio1",
+			"serviceStateTable": {
+				"ServiceCheck": {
+					"value": 0,
+					"comparisson": "="
+				}
+			}
+		},
+		{
+			"id": 2,
+			"label": {
+				"lang_tag": "tb_ev_rachioservice_is_offline",
+				"text": "Whenever _DEVICE_NAME_ is offline"
+			},
+			"serviceId": "urn:toggledbits-com:serviceId:Rachio1",
+			"serviceStateTable": {
+				"On": {
+					"value": 0,
+					"comparisson": ">"
+				}
+			}
+		}
+	],
+	"device_type": "urn:schemas-toggledbits-com:device:Rachio:1"
 }

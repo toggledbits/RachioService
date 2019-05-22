@@ -1,301 +1,301 @@
 {
-    "_comment": [
-        "This file is part of the Rachio Plugin for Vera",
-        "Copyright 2017 Patrick H. Rigney, All Rights Reserved",
-        "$Id$"
-    ],
-    "default_icon": "https://www.toggledbits.com/assets/rachio/rachio-schedule-ok-60x60.png",
-    "state_icons": [{
-            "img": "https://www.toggledbits.com/assets/rachio/rachio-schedule-disabled-60x60.png",
-            "conditions": [{
-                "service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                "variable": "Enabled",
-                "operator": "==",
-                "value": "0"
-            }]
-        },
-        {
-            "img": "https://www.toggledbits.com/assets/rachio/rachio-schedule-running-60x60.png",
-            "conditions": [{
-                "service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                "variable": "Watering",
-                "operator": "==",
-                "value": "1"
-            }]
-        }
-    ],
-    "x": 4,
-    "y": 1,
-    "inScene": 1,
-    "Tabs": [{
-            "Label": {
-                "lang_tag": "tabname_control",
-                "text": "Control"
-            },
-            "Position": 0,
-            "TabType": "flash",
-            "TopNavigationTab": 1,
-            "ControlGroup": [{
-                "id": 1,
-                "isSingle": 1,
-                "scenegroup": 1
-            }],
-            "SceneGroup": [{
-                "id": 1,
-                "top": 0,
-                "left": 0,
-                "x": 2,
-                "y": 1
-            }],
-            "Control": [
-                {
-                    "ControlGroup": 1,
-                    "ControlType": "button",
-                    "top": 0,
-                    "left": 0,
-                    "Label": {
-                        "lang_tag": "tb_rachioschedrunbutton",
-                        "text": "Start"
-                    },
-                    "Display": {
-                        "Top": 8,
-                        "Left": 160,
-                        "Width": 144,
-                        "Height": 24
-                    },
-                    "Command": {
-                        "Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                        "Action": "RunSchedule",
-                        "Parameters": []
-                    },
-                    "ControlCode": "rachiosched_run"
-                },
-                {
-                    "ControlGroup": 1,
-                    "ControlType": "variable",
-                    "top": 0,
-                    "left": 0,
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                        "Variable": "Message",
-                        "Top": 32,
-                        "Left": 8,
-                        "Width": 320,
-                        "Height": 24
-                    },
-                    "ControlCode": "sched_msg"
-                },
-                {
-                    "ControlType": "variable",
-                    "top": 0,
-                    "left": 0,
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                        "Variable": "Remaining",
-                        "Top": 56,
-                        "Left": 104,
-                        "Width": 65,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "top": 0,
-                    "left": 0,
-                    "Label": {
-                        "lang_tag": "tb_remaining",
-                        "text": "Remaining"
-                    },
-                    "Display": {
-                        "Top": 56,
-                        "Left": 8,
-                        "Width": 96,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "variable",
-                    "top": 0,
-                    "left": 0,
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                        "Variable": "LastStart",
-                        "Top": 80,
-                        "Left": 104,
-                        "Width": 170,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "top": 0,
-                    "left": 0,
-                    "Label": {
-                        "lang_tag": "tb_laststart",
-                        "text": "Last Start"
-                    },
-                    "Display": {
-                        "Top": 80,
-                        "Left": 8,
-                        "Width": 96,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "variable",
-                    "top": 0,
-                    "left": 0,
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                        "Variable": "Duration",
-                        "Top": 104,
-                        "Left": 104,
-                        "Width": 170,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "top": 0,
-                    "left": 0,
-                    "Label": {
-                        "lang_tag": "tb_lastduration",
-                        "text": "Last Duration"
-                    },
-                    "Display": {
-                        "Top": 104,
-                        "Left": 8,
-                        "Width": 96,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "variable",
-                    "top": 0,
-                    "left": 0,
-                    "Display": {
-                        "Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
-                        "Variable": "Summary",
-                        "Top": 128,
-                        "Left": 104,
-                        "Width": 320,
-                        "Height": 24
-                    }
-                },
-                {
-                    "ControlType": "label",
-                    "top": 0,
-                    "left": 0,
-                    "Label": {
-                        "lang_tag": "tb_summary",
-                        "text": "Summary"
-                    },
-                    "Display": {
-                        "Top": 128,
-                        "Left": 8,
-                        "Width": 96,
-                        "Height": 24
-                    }
-                }
-            ]
-        },
-        {
-            "Label": {
-                "lang_tag": "advanced",
-                "text": "Advanced"
-            },
-            "Position": 1,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "advanced_device"
-        },
-        {
-            "Label": {
-                "lang_tag": "logs",
-                "text": "Logs"
-            },
-            "Position": 2,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "device_logs"
-        },
-        {
-            "Label": {
-                "lang_tag": "notifications",
-                "text": "Notifications"
-            },
-            "Position": 3,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "device_notifications"
-        },
-        {
-            "Label": {
-                "lang_tag": "device_scenes",
-                "text": "Scenes"
-            },
-            "Position": 4,
-            "TabType": "javascript",
-            "ScriptName": "shared.js",
-            "Function": "device_scenes"
-        }
-    ],
-    "eventList2": [{
-            "id": 1,
-            "label": {
-                "lang_tag": "tb_rachioschedule_is_enabled",
-                "text": "Whenever _DEVICE_NAME_ is enabled"
-            },
-            "serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
-            "serviceStateTable": {
-                "Enabled": {
-                    "value": 1,
-                    "comparisson": "="
-                }
-            }
-        },
-        {
-            "id": 2,
-            "label": {
-                "lang_tag": "tb_rachioschedule_is_disabled",
-                "text": "Whenever _DEVICE_NAME_ is disabled"
-            },
-            "serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
-            "serviceStateTable": {
-                "Enabled": {
-                    "value": 0,
-                    "comparisson": "="
-                }
-            }
-        },
-        {
-            "id": 3,
-            "label": {
-                "lang_tag": "tb_rachioschedule_runs",
-                "text": "Whenever _DEVICE_NAME_ runs"
-            },
-            "serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
-            "serviceStateTable": {
-                "Watering": {
-                    "value": 1,
-                    "comparisson": "="
-                }
-            }
-        },
-        {
-            "id": 4,
-            "label": {
-                "lang_tag": "tb_rachioschedule_stops",
-                "text": "Whenever _DEVICE_NAME_ stops"
-            },
-            "serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
-            "serviceStateTable": {
-                "Watering": {
-                    "value": 0,
-                    "comparisson": "="
-                }
-            }
-        }
-    ],
-    "device_type": "urn:schemas-toggledbits-com:device:RachioSchedule:1"
+	"_comment": [
+		"This file is part of the Rachio Plugin for Vera",
+		"Copyright 2017 Patrick H. Rigney, All Rights Reserved",
+		"$Id$"
+	],
+	"default_icon": "https://www.toggledbits.com/assets/rachio/rachio-schedule-ok-60x60.png",
+	"state_icons": [{
+			"img": "https://www.toggledbits.com/assets/rachio/rachio-schedule-disabled-60x60.png",
+			"conditions": [{
+				"service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+				"variable": "Enabled",
+				"operator": "==",
+				"value": "0"
+			}]
+		},
+		{
+			"img": "https://www.toggledbits.com/assets/rachio/rachio-schedule-running-60x60.png",
+			"conditions": [{
+				"service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+				"variable": "Watering",
+				"operator": "==",
+				"value": "1"
+			}]
+		}
+	],
+	"x": 4,
+	"y": 1,
+	"inScene": 1,
+	"Tabs": [{
+			"Label": {
+				"lang_tag": "tabname_control",
+				"text": "Control"
+			},
+			"Position": 0,
+			"TabType": "flash",
+			"TopNavigationTab": 1,
+			"ControlGroup": [{
+				"id": 1,
+				"isSingle": 1,
+				"scenegroup": 1
+			}],
+			"SceneGroup": [{
+				"id": 1,
+				"top": 0,
+				"left": 0,
+				"x": 2,
+				"y": 1
+			}],
+			"Control": [
+				{
+					"ControlGroup": 1,
+					"ControlType": "button",
+					"top": 0,
+					"left": 0,
+					"Label": {
+						"lang_tag": "tb_rachioschedrunbutton",
+						"text": "Start"
+					},
+					"Display": {
+						"Top": 8,
+						"Left": 160,
+						"Width": 144,
+						"Height": 24
+					},
+					"Command": {
+						"Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+						"Action": "RunSchedule",
+						"Parameters": []
+					},
+					"ControlCode": "rachiosched_run"
+				},
+				{
+					"ControlGroup": 1,
+					"ControlType": "variable",
+					"top": 0,
+					"left": 0,
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+						"Variable": "Message",
+						"Top": 32,
+						"Left": 8,
+						"Width": 320,
+						"Height": 24
+					},
+					"ControlCode": "sched_msg"
+				},
+				{
+					"ControlType": "variable",
+					"top": 0,
+					"left": 0,
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+						"Variable": "Remaining",
+						"Top": 56,
+						"Left": 104,
+						"Width": 65,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"top": 0,
+					"left": 0,
+					"Label": {
+						"lang_tag": "tb_remaining",
+						"text": "Remaining"
+					},
+					"Display": {
+						"Top": 56,
+						"Left": 8,
+						"Width": 96,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "variable",
+					"top": 0,
+					"left": 0,
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+						"Variable": "LastStart",
+						"Top": 80,
+						"Left": 104,
+						"Width": 170,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"top": 0,
+					"left": 0,
+					"Label": {
+						"lang_tag": "tb_laststart",
+						"text": "Last Start"
+					},
+					"Display": {
+						"Top": 80,
+						"Left": 8,
+						"Width": 96,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "variable",
+					"top": 0,
+					"left": 0,
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+						"Variable": "Duration",
+						"Top": 104,
+						"Left": 104,
+						"Width": 170,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"top": 0,
+					"left": 0,
+					"Label": {
+						"lang_tag": "tb_lastduration",
+						"text": "Last Duration"
+					},
+					"Display": {
+						"Top": 104,
+						"Left": 8,
+						"Width": 96,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "variable",
+					"top": 0,
+					"left": 0,
+					"Display": {
+						"Service": "urn:toggledbits-com:serviceId:RachioSchedule1",
+						"Variable": "Summary",
+						"Top": 128,
+						"Left": 104,
+						"Width": 320,
+						"Height": 24
+					}
+				},
+				{
+					"ControlType": "label",
+					"top": 0,
+					"left": 0,
+					"Label": {
+						"lang_tag": "tb_summary",
+						"text": "Summary"
+					},
+					"Display": {
+						"Top": 128,
+						"Left": 8,
+						"Width": 96,
+						"Height": 24
+					}
+				}
+			]
+		},
+		{
+			"Label": {
+				"lang_tag": "advanced",
+				"text": "Advanced"
+			},
+			"Position": 1,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "advanced_device"
+		},
+		{
+			"Label": {
+				"lang_tag": "logs",
+				"text": "Logs"
+			},
+			"Position": 2,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "device_logs"
+		},
+		{
+			"Label": {
+				"lang_tag": "notifications",
+				"text": "Notifications"
+			},
+			"Position": 3,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "device_notifications"
+		},
+		{
+			"Label": {
+				"lang_tag": "device_scenes",
+				"text": "Scenes"
+			},
+			"Position": 4,
+			"TabType": "javascript",
+			"ScriptName": "shared.js",
+			"Function": "device_scenes"
+		}
+	],
+	"eventList2": [{
+			"id": 1,
+			"label": {
+				"lang_tag": "tb_rachioschedule_is_enabled",
+				"text": "Whenever _DEVICE_NAME_ is enabled"
+			},
+			"serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
+			"serviceStateTable": {
+				"Enabled": {
+					"value": 1,
+					"comparisson": "="
+				}
+			}
+		},
+		{
+			"id": 2,
+			"label": {
+				"lang_tag": "tb_rachioschedule_is_disabled",
+				"text": "Whenever _DEVICE_NAME_ is disabled"
+			},
+			"serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
+			"serviceStateTable": {
+				"Enabled": {
+					"value": 0,
+					"comparisson": "="
+				}
+			}
+		},
+		{
+			"id": 3,
+			"label": {
+				"lang_tag": "tb_rachioschedule_runs",
+				"text": "Whenever _DEVICE_NAME_ runs"
+			},
+			"serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
+			"serviceStateTable": {
+				"Watering": {
+					"value": 1,
+					"comparisson": "="
+				}
+			}
+		},
+		{
+			"id": 4,
+			"label": {
+				"lang_tag": "tb_rachioschedule_stops",
+				"text": "Whenever _DEVICE_NAME_ stops"
+			},
+			"serviceId": "urn:toggledbits-com:serviceId:RachioSchedule1",
+			"serviceStateTable": {
+				"Watering": {
+					"value": 0,
+					"comparisson": "="
+				}
+			}
+		}
+	],
+	"device_type": "urn:schemas-toggledbits-com:device:RachioSchedule:1"
 }

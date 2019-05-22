@@ -1,155 +1,155 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <implementation>
-    <functions>
-        -- -------------------------------------------------------------------------------------------------------------------------
-        -- Rachio Plugin for MiCasaVerde MiOS/Vera Controllers
-        -- http://www.toggledbits.com/rachio
-        -- Copyright 2017 Patrick H. Rigney, All Rights Reserved.
-        -- -------------------------------------------------------------------------------------------------------------------------
-        function startRachio1(dev)
-            luup.log("Rachio Service Plugin START-UP!")
-            rachio = require("L_Rachio1")
-            rachio_plugin_tick = rachio.tick
-            rachioRequestHandler = rachio.requestHandler
-            luup.register_handler("rachioRequestHandler", "Rachio")
-            return rachio.start(dev)
-        end
-    </functions>
-    <startup>startRachio1</startup>
-    <actionList>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>SetAPIKey</name>
-            <run>
-                local newKey = lul_settings.newAPIKey or ""
-                newKey = string.gsub( newKey, "%s+", "" ) -- remove all whitespace
-                if string.lower(newKey) == "trace" then
-                    rachio.setTraceMode( lul_device, true )
-                    luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "Message", "trace on", lul_device)
-                elseif string.lower(newKey) == "notrace" then
-                    rachio.setTraceMode( lul_device, false )
-                    luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "Message", "trace off", lul_device)
-                elseif newKey ~= "" then
-                    if string.match(newKey, "^X+$") then newKey = "" end -- remove API key
-                    luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "APIKey", newKey, lul_device)
-                    luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "PID", "", lul_device)
-                end
-                rachio.start(lul_device)
-                return true
-            </run>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>GetAPIKey</name>
-            <run>
-                -- Luup returns from storage automagically (see config in S_...xml)
-            </run>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>ServiceReset</name>
-            <run>
-                rachio.rachioServiceReset( lul_device )
-                return true
-            </run>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>SetHideZones</name>
-            <job>
-                rachio.rachioServiceHideZones(lul_device, lul_settings.newHideValue, lul_settings.newHideDisabledValue)
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>SetHideSchedules</name>
-            <job>
-                rachio.rachioServiceHideSchedules(lul_device, lul_settings.newHideValue, lul_settings.newHideDisabledValue)
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
-            <name>DeviceOn</name>
-            <job>
-                if rachio.rachioDeviceOn( lul_device ) then
-                    luup.variable_set("urn:toggledbits-com:serviceId:RachioDevice1", "On", "1", lul_device)
-                end
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
-            <name>DeviceOff</name>
-            <job>
-                if rachio.rachioDeviceOff( lul_device ) then
-                    luup.variable_set("urn:toggledbits-com:serviceId:RachioDevice1", "On", "0", lul_device)
-                end
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
-            <name>DeviceStop</name>
-            <job>
-                rachio.rachioDeviceStop( lul_device )
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
-            <name>StartMultiZone</name>
-            <job>
-                rachio.rachioStartMultiZone( lul_device, lul_settings.zoneData )
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioZone1</serviceId>
-            <name>StartZone</name>
-            <job>
-                rachio.rachioStartZone( lul_device, lul_settings.durationMinutes )
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioSchedule1</serviceId>
-            <name>RunSchedule</name>
-            <job>
-                rachio.rachioRunSchedule( lul_device )
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:RachioSchedule1</serviceId>
-            <name>SkipSchedule</name>
-            <job>
-                rachio.rachioSkipSchedule( lul_device )
-                return 4,0
-            </job>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>Test</name>
-            <run>
-                luup.log("rachio=" .. type(rachio))
-                return true
-            </run>
-        </action>
-        <action>
-            <serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
-            <name>SetDebug</name>
-            <run>
-                rachio.rachioSetDebug( lul_device, lul_settings.debug )
-            </run>
-        </action>
-        <action>
-            <serviceId>urn:upnp-org:serviceId:SwitchPower1</serviceId>
-            <name>SetTarget</name>
-            <job>
-                -- Water valves (zones and schedules) are also supported as switches.
-                rachio.rachioSwitchSetTarget( lul_device, lul_settings.newTargetValue )
-                return 4,0
-            </job>
-        </action>
-    </actionList>
+	<functions>
+		-- -------------------------------------------------------------------------------------------------------------------------
+		-- Rachio Plugin for MiCasaVerde MiOS/Vera Controllers
+		-- http://www.toggledbits.com/rachio
+		-- Copyright 2017 Patrick H. Rigney, All Rights Reserved.
+		-- -------------------------------------------------------------------------------------------------------------------------
+		function startRachio1(dev)
+			luup.log("Rachio Service Plugin START-UP!")
+			rachio = require("L_Rachio1")
+			rachio_plugin_tick = rachio.tick
+			rachioRequestHandler = rachio.requestHandler
+			luup.register_handler("rachioRequestHandler", "Rachio")
+			return rachio.start(dev)
+		end
+	</functions>
+	<startup>startRachio1</startup>
+	<actionList>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>SetAPIKey</name>
+			<run>
+				local newKey = lul_settings.newAPIKey or ""
+				newKey = string.gsub( newKey, "%s+", "" ) -- remove all whitespace
+				if string.lower(newKey) == "trace" then
+					rachio.setTraceMode( lul_device, true )
+					luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "Message", "trace on", lul_device)
+				elseif string.lower(newKey) == "notrace" then
+					rachio.setTraceMode( lul_device, false )
+					luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "Message", "trace off", lul_device)
+				elseif newKey ~= "" then
+					if string.match(newKey, "^X+$") then newKey = "" end -- remove API key
+					luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "APIKey", newKey, lul_device)
+					luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "PID", "", lul_device)
+				end
+				rachio.start(lul_device)
+				return true
+			</run>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>GetAPIKey</name>
+			<run>
+				-- Luup returns from storage automagically (see config in S_...xml)
+			</run>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>ServiceReset</name>
+			<run>
+				rachio.rachioServiceReset( lul_device )
+				return true
+			</run>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>SetHideZones</name>
+			<job>
+				rachio.rachioServiceHideZones(lul_device, lul_settings.newHideValue, lul_settings.newHideDisabledValue)
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>SetHideSchedules</name>
+			<job>
+				rachio.rachioServiceHideSchedules(lul_device, lul_settings.newHideValue, lul_settings.newHideDisabledValue)
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
+			<name>DeviceOn</name>
+			<job>
+				if rachio.rachioDeviceOn( lul_device ) then
+					luup.variable_set("urn:toggledbits-com:serviceId:RachioDevice1", "On", "1", lul_device)
+				end
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
+			<name>DeviceOff</name>
+			<job>
+				if rachio.rachioDeviceOff( lul_device ) then
+					luup.variable_set("urn:toggledbits-com:serviceId:RachioDevice1", "On", "0", lul_device)
+				end
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
+			<name>DeviceStop</name>
+			<job>
+				rachio.rachioDeviceStop( lul_device )
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioDevice1</serviceId>
+			<name>StartMultiZone</name>
+			<job>
+				rachio.rachioStartMultiZone( lul_device, lul_settings.zoneData )
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioZone1</serviceId>
+			<name>StartZone</name>
+			<job>
+				rachio.rachioStartZone( lul_device, lul_settings.durationMinutes )
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioSchedule1</serviceId>
+			<name>RunSchedule</name>
+			<job>
+				rachio.rachioRunSchedule( lul_device )
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:RachioSchedule1</serviceId>
+			<name>SkipSchedule</name>
+			<job>
+				rachio.rachioSkipSchedule( lul_device )
+				return 4,0
+			</job>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>Test</name>
+			<run>
+				luup.log("rachio=" .. type(rachio))
+				return true
+			</run>
+		</action>
+		<action>
+			<serviceId>urn:toggledbits-com:serviceId:Rachio1</serviceId>
+			<name>SetDebug</name>
+			<run>
+				rachio.rachioSetDebug( lul_device, lul_settings.debug )
+			</run>
+		</action>
+		<action>
+			<serviceId>urn:upnp-org:serviceId:SwitchPower1</serviceId>
+			<name>SetTarget</name>
+			<job>
+				-- Water valves (zones and schedules) are also supported as switches.
+				rachio.rachioSwitchSetTarget( lul_device, lul_settings.newTargetValue )
+				return 4,0
+			</job>
+		</action>
+	</actionList>
 </implementation>
