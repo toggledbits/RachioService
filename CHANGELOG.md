@@ -1,6 +1,6 @@
 # Change Log #
 
-## Version 1.5 (stable branch) ##
+## Version 1.5 (development) ##
 
 * Upgrade detection of AltUI so we don't falsely detect when bridged (on "real" device triggers AltUI feature registration).
 * Now runs on openLuup.
