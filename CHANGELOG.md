@@ -2,6 +2,7 @@
 
 ## Version 1.5 (development) ##
 
+* Change of a controller, zone, or schedule name is now copied to Vera device name on device updates (hourly by default).
 * Upgrade detection of AltUI so we don't falsely detect when bridged (on "real" device triggers AltUI feature registration).
 * Now runs on openLuup.
 * Add Enabled variable to stop plugin operation/API polling.
