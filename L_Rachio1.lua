@@ -792,6 +792,7 @@ local function doDeviceUpdate( data, serviceDev )
 					luup.variable_set(ZONESID, "Number", z.zoneNumber or "", czn)
 					luup.variable_set(ZONESID, "Name", z.name or "", czn)
 					luup.variable_set(DEVICESID, "ParentDevice", cdn, czn) -- yes, DEVICESID, really
+					luup.attr_set("name", z.name or "Unnamed Zone", czn)
 					luup.attr_set("invisible", tostring(localHide), czn)
 				else
 					-- Zone not found. Rachio's config may have changed behind our back.
@@ -829,6 +830,7 @@ local function doDeviceUpdate( data, serviceDev )
 					luup.variable_set(SCHEDULESID, "Type", z.type or "FIXED", csn)
 					luup.variable_set(SCHEDULESID, "Duration", z.totalDuration or "", csn)
 					luup.variable_set(DEVICESID, "ParentDevice", cdn, csn) -- yes, DEVICESID, really
+					luup.attr_set("name", z.name or z.id, csn )
 					luup.attr_set("invisible", tostring(localHide), csn)
 				else
 					-- Rachio data pointed us to a device we can't find. Forcing a reset
@@ -879,6 +881,7 @@ local function setUpDevices(data, serviceDev)
 			changes = changes + 1
 			D("setUpDevices() adding child for device " .. tostring(v.id))
 		else
+			luup.attr_set( "name", v.name or v.id, cdn )
 			luup.attr_set( "category_num", 1, cdn )
 			luup.attr_set( "subcategory_num", 0, cdn )
 		end
