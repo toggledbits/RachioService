@@ -420,7 +420,7 @@
 					"ControlType": "label",
 					"Label": {
 						"lang_tag": "tb_rachio_about",
-						"text": "WARNING! <em>Reset Service</em> should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.5develop-19144 &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>. Support links: <a href=\"/port_3480/data_request?id=lr_Rachio&action=status\" target=\"_blank\">status</a> &#149; <a href=\"/port_3480/data_request?id=lr_Rachio&action=debug\" target=\"_blank\">debug on</a>"
+						"text": "WARNING! <em>Reset Service</em> should only be used when directed--it will cause plugin devices to renumber, which will may break scenes and Lua that reference those devices.<br/>&nbsp;<br/>Rachio Plugin for Vera ver 1.5 &#169; 2017,2018 Patrick H. Rigney, All Rights Reserved.<br/><a href=\"http://www.toggledbits.com/rachio/\" target=\"_blank\">Documentation, support and license information</a>. Support links: <a href=\"/port_3480/data_request?id=lr_Rachio&action=status\" target=\"_blank\">status</a> &#149; <a href=\"/port_3480/data_request?id=lr_Rachio&action=debug\" target=\"_blank\">debug on</a>"
 					},
 					"Display": {
 						"Top": 292,
