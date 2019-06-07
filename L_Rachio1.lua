@@ -22,7 +22,7 @@ module("L_Rachio1", package.seeall)
 
 local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.5"
+local _PLUGIN_VERSION = "1.6develop-19158"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 00108
 
@@ -145,7 +145,7 @@ local function A(st, msg, ...)
 	if msg == nil then msg = "assertion failed" end
 	if not st then
 		L(msg, ...)
-		hardFail(HTTPREQ_GENERICERROR, "Offline (" + msg + ")")
+		hardFail(HTTPREQ_GENERICERROR, "Offline (" .. msg .. ")")
 	end
 end
 
@@ -482,7 +482,7 @@ local function getJSON(path, method, body)
 	local r = {}
 	http.TIMEOUT = timeout -- N.B. http not https, regardless
 	D("getJSON() #%1: %2 %3, headers=%4", ncall, method, url, tHeaders)
-	local respBody, httpStatus, httpHeaders = requestor.request{
+	local _, httpStatus, httpHeaders = requestor.request{
 		url = url,
 		source = src,
 		sink = ltn12.sink.table(r),
@@ -492,7 +492,7 @@ local function getJSON(path, method, body)
 	}
 
 	-- Since we're using the table sink, concatenate chunks to single string.
-	respBody = table.concat(r)
+	local respBody = table.concat(r)
 	r = nil -- free that table memory?
 
 	--[[
@@ -730,7 +730,6 @@ end
 
 local function doDeviceUpdate( data, serviceDev )
 	D("doDeviceUpdate(data,%1)", serviceDev)
-	local lastUpdate = os.time()
 
 	showServiceStatus("Online (updating)", serviceDev)
 
@@ -1104,15 +1103,15 @@ function start(pdev)
 				{ newDeviceType=SYSTYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.ServiceDraw" },
 				k )
 			D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
-			local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+			rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
 				{ newDeviceType=DEVICETYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.DeviceDraw" },
 				k )
 			D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
-			local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+			rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
 				{ newDeviceType=SCHEDULETYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.ScheduleDraw" },
 				k )
 			D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
-			local rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
+			rc,rs,jj,ra = luup.call_action("urn:upnp-org:serviceId:altui1", "RegisterPlugin",
 				{ newDeviceType=ZONETYPE, newScriptFile="J_Rachio1_ALTUI.js", newDeviceDrawFunc="Rachio1_ALTUI.ZoneDraw" },
 				k )
 			D("start() ALTUI's RegisterPlugin action returned resultCode=%1, resultString=%2, job=%3, returnArguments=%4", rc,rs,jj,ra)
@@ -1626,7 +1625,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
 	local action = lul_parameters['action'] or lul_parameters['command'] or ""
 	local deviceNum = tonumber( lul_parameters['device'], 10 ) or serviceDevice
 	if action == "debug" then
-		debugMode = not DebugMode
+		debugMode = not debugMode
 		return "Debug is now " .. debugMode and "on" or "off", "text/plain"
 	end
 
@@ -1721,6 +1720,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
 			name=_PLUGIN_NAME,
 			version=_PLUGIN_VERSION,
 			configversion=_CONFIGVERSION,
+			pluginid=_PLUGIN_ID,
 			author="Patrick H. Rigney (rigpapa)",
 			url=_PLUGIN_URL,
 			['type']=SYSTYPE,

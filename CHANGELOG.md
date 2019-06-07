@@ -1,5 +1,9 @@
 # Change Log #
 
+## Version 1.6 (development)
+
+* Fix reference error in assertion that could cause plugin crash when restarting between Luup reloads (e.g. when assigning new API key).
+
 ## Version 1.5 (released) ##
 
 * Change of a controller, zone, or schedule name is now copied to Vera device name on device updates (hourly by default).
