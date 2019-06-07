@@ -24,7 +24,7 @@ local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
 local _PLUGIN_VERSION = "1.6develop-19158"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
-local _CONFIGVERSION = 00108
+local _CONFIGVERSION = 19145
 
 local debugMode = false
 
@@ -111,7 +111,7 @@ local function dump(t)
 	return str
 end
 
-local function L(msg, ...)
+local function L(msg, ...) -- luacheck: ignore 212
 	local str
 	local level = 50
 	if type(msg) == "table" then
@@ -149,7 +149,7 @@ local function A(st, msg, ...)
 	end
 end
 
-local function choose( ix, dflt, ...)
+local function choose( ix, dflt, ...) -- luacheck: ignore 212
 	if ix < 1 or ix > #arg then return dflt end
 	return arg[ix]
 end
@@ -199,7 +199,7 @@ local function clone( t )
 end
 
 -- Merge arrays
-local function arraymerge( base, ... )
+local function arraymerge( base, ... ) -- luacheck: ignore 212
 	if base == nil then return {} end
 	local res = clone(base)
 	if arg ~= nil and #arg > 0 then
@@ -227,12 +227,14 @@ local function getVarNumeric( serviceid, name, dflt, dev )
 	return s
 end
 
+--[[
 -- Shortcut function to return state of SwitchPower1 Status variable
 local function isServiceCheck()
 	local s = getVarNumeric( SYSSID, "ServiceCheck", "", serviceDevice )
 	if s == "" then return true end -- default is we really don't know, so say down
 	return (s ~= "0")
 end
+--]]
 
 -- Schedule next update. If it's sooner than current, start new timer thread
 local function scheduleUpdate( delay, force )
@@ -493,7 +495,8 @@ local function getJSON(path, method, body)
 
 	-- Since we're using the table sink, concatenate chunks to single string.
 	local respBody = table.concat(r)
-	r = nil -- free that table memory?
+	-- free that table memory?
+	r = nil -- luacheck: ignore 311
 
 	--[[
 	if debugMode then
@@ -743,7 +746,9 @@ local function doDeviceUpdate( data, serviceDev )
 	for _,v in pairs(data.devices) do
 		-- Find this device
 		local cdn = findChildByUID( v.id )
-		if cdn ~= nil then
+		if ( v.deleted or 0 ) ~= 0 then
+			D("doDeviceUpdate() device %1 marked deleted, skipping", v.id)
+		elseif cdn ~= nil then
 			if v.status == nil or v.status:lower() ~= "online" then
 				setMessage("*" .. tostring(v.status), DEVICESID, cdn, 99)
 			elseif v.on == 0 then
@@ -871,69 +876,71 @@ local function setUpDevices(data, serviceDev)
 	local ptr = luup.chdev.start(serviceDev)
 
 	-- Now pass through the devices again and enumerate all the zones for each.
-	local knownDevices = map(findChildrenByType(DEVICETYPE), function( index, value ) return luup.devices[value].id, true end)
+	local knownDevices = map(findChildrenByType(DEVICETYPE), function( _, value ) return luup.devices[value].id, true end)
 	for _,v in pairs(data.devices) do
-		D("setUpDevices(): device " .. tostring(v.id) .. " model " .. tostring(v.model))
-		local cdn = findChildByUID( v.id )
-		if cdn == nil then
-			-- New device
-			changes = changes + 1
-			D("setUpDevices() adding child for device " .. tostring(v.id))
-		else
-			luup.attr_set( "name", v.name or v.id, cdn )
-			luup.attr_set( "category_num", 1, cdn )
-			luup.attr_set( "subcategory_num", 0, cdn )
-		end
-
-		-- Always append child (embedded) device. Pass UID as id (string 3), and also initialize UID service variable.
-		luup.chdev.append( serviceDev, ptr, v.id, v.name, "", "D_RachioDevice1.xml", "", SYSSID .. ",RachioID=" .. v.id, true )
-
-		-- Child exists or was created, remove from known list
-		knownDevices[v.id] = nil
-
-		-- Now go through zones for this device...
-		local knownZones = map(findChildrenByType(ZONETYPE), function( index, value ) return luup.devices[value].id, true end)
-		for _,z in pairs(v.zones) do
-			D("setUpDevices():     zone " .. tostring(z.zoneNumber) .. " " .. tostring(z.name))
-			local czn = findChildByUID( z.id )
-			if czn == nil then
-				-- New zone
+		D("setUpDevices(): device %1 model %2, deleted=%3", v.id, v.model, v.deleted)
+		if ( v.deleted or 0 ) == 0 then
+			local cdn = findChildByUID( v.id )
+			if cdn == nil then
+				-- New device
 				changes = changes + 1
-				D("setUpDevices() adding child device for zone " .. z.id .. " number " .. z.zoneNumber .. " " .. z.name)
+				D("setUpDevices() adding child for device " .. tostring(v.id))
 			else
-				luup.attr_set( "category_num", 3, czn )
-				luup.attr_set( "subcategory_num", 7, czn )
+				luup.attr_set( "name", v.name or v.id, cdn )
+				luup.attr_set( "category_num", 1, cdn )
+				luup.attr_set( "subcategory_num", 0, cdn )
 			end
 
-			-- Always append child device. Pass UID as id (string 3), and also initialize UID service variable.
-			luup.chdev.append( serviceDev, ptr, z.id, z.name, "", "D_RachioZone1.xml", "", SYSSID..",RachioID=" .. z.id, true )
+			-- Always append child (embedded) device. Pass UID as id (string 3), and also initialize UID service variable.
+			luup.chdev.append( serviceDev, ptr, v.id, v.name, "", "D_RachioDevice1.xml", "", SYSSID .. ",RachioID=" .. v.id, true )
 
-			-- Remove from known list
-			knownZones[z.id] = nil
-		end
-		for _ in pairs(knownZones) do changes = changes + 1 break end
+			-- Child exists or was created, remove from known list
+			knownDevices[v.id] = nil
 
-		-- And schedules
-		local knownSchedules = map(findChildrenByType(SCHEDULETYPE), function( index, value ) return luup.devices[value].id, true end)
-		for _,z in pairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
-			D("setUpDevices():     schedule %1 name %2", z.id, z.name)
-			local csn = findChildByUID( z.id )
-			if csn == nil then
-				-- New schedule
-				changes = changes + 1
-				D("setUpDevices() adding child for schedule %1", z.id)
-			else
-				luup.attr_set( "category_num", 3, csn )
-				luup.attr_set( "subcategory_num", 7, csn )
+			-- Now go through zones for this device...
+			local knownZones = map(findChildrenByType(ZONETYPE), function( _, value ) return luup.devices[value].id, true end)
+			for _,z in pairs(v.zones) do
+				D("setUpDevices():     zone " .. tostring(z.zoneNumber) .. " " .. tostring(z.name))
+				local czn = findChildByUID( z.id )
+				if czn == nil then
+					-- New zone
+					changes = changes + 1
+					D("setUpDevices() adding child device for zone " .. z.id .. " number " .. z.zoneNumber .. " " .. z.name)
+				else
+					luup.attr_set( "category_num", 3, czn )
+					luup.attr_set( "subcategory_num", 7, czn )
+				end
+
+				-- Always append child device. Pass UID as id (string 3), and also initialize UID service variable.
+				luup.chdev.append( serviceDev, ptr, z.id, z.name, "", "D_RachioZone1.xml", "", SYSSID..",RachioID=" .. z.id, true )
+
+				-- Remove from known list
+				knownZones[z.id] = nil
 			end
+			if next(knownZones) then changes = changes + 1 end -- any remaining?
 
-			luup.chdev.append( serviceDev, ptr, z.id, z.name, "", "D_RachioSchedule1.xml", "", SYSSID .. ",RachioID=" .. z.id, true )
+			-- And schedules
+			local knownSchedules = map(findChildrenByType(SCHEDULETYPE), function( _, value ) return luup.devices[value].id, true end)
+			for _,z in pairs( arraymerge(v.scheduleRules, v.flexScheduleRules) ) do
+				D("setUpDevices():     schedule %1 name %2", z.id, z.name)
+				local csn = findChildByUID( z.id )
+				if csn == nil then
+					-- New schedule
+					changes = changes + 1
+					D("setUpDevices() adding child for schedule %1", z.id)
+				else
+					luup.attr_set( "category_num", 3, csn )
+					luup.attr_set( "subcategory_num", 7, csn )
+				end
 
-			knownSchedules[z.id] = nil
+				luup.chdev.append( serviceDev, ptr, z.id, z.name, "", "D_RachioSchedule1.xml", "", SYSSID .. ",RachioID=" .. z.id, true )
+
+				knownSchedules[z.id] = nil
+			end
+			if next(knownSchedules) then changes = changes + 1 end -- any remaining?
 		end
-		for _ in pairs(knownSchedules) do changes = changes + 1 break end
 	end
-	for _ in pairs(knownDevices) do changes = changes + 1 break end
+	if next(knownDevices) then changes = changes + 1 end -- any remaining?
 
 	-- Finished enumerating zones for this device. If we changed any, sync() will reload Luup now.
 	L("Inventory completed, %1 changes to configuration.", changes)
@@ -1365,6 +1372,7 @@ local function startJob( devnum )
 end
 
 local function finishJob( devnum )
+	D("finishJob(%1)", devnum)
 	scheduleUpdate( 10, true )
 end
 
@@ -1592,7 +1600,7 @@ local function issKeyVal( k, v, s )
 	return s
 end
 
-local function getDevice( dev, pdev, v )
+local function getDevice( dev, pdev, v ) -- luacheck: ignore 212(pdev)
 	local dkjson = json or require("dkjson")
 	if v == nil then v = luup.devices[dev] end
 	local devinfo = {
@@ -1622,8 +1630,8 @@ end
 
 function requestHandler(lul_request, lul_parameters, lul_outputformat)
 	D("requestHandler(%1,%2,%3) serviceDevice=%4", lul_request, lul_parameters, lul_outputformat, serviceDevice)
-	local action = lul_parameters['action'] or lul_parameters['command'] or ""
-	local deviceNum = tonumber( lul_parameters['device'], 10 ) or serviceDevice
+	local action = lul_parameters.action or lul_parameters.command or ""
+	-- local deviceNum = tonumber( lul_parameters.device ) or serviceDevice
 	if action == "debug" then
 		debugMode = not debugMode
 		return "Debug is now " .. debugMode and "on" or "off", "text/plain"
@@ -1632,7 +1640,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
 	if action:sub( 1, 3 ) == "ISS" then
 		-- ImperiHome ISS Standard System API, see http://dev.evertygo.com/api/iss#types
 		local dkjson = json or require('dkjson')
-		local path = lul_parameters['path'] or action:sub( 4 ) -- Work even if I'home user forgets &path=
+		local path = lul_parameters.path or action:sub( 4 ) -- Work even if I'home user forgets &path=
 		if path == "/system" then
 			return dkjson.encode( { id=_PLUGIN_NAME .. "-" .. luup.pk_accesspoint, apiversion=1 } ), "application/json"
 		elseif path == "/rooms" then
