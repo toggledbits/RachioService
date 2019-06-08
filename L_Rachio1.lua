@@ -22,7 +22,7 @@ module("L_Rachio1", package.seeall)
 
 local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.6develop-19158"
+local _PLUGIN_VERSION = "1.6"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 19145
 
