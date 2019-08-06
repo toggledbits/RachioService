@@ -34,7 +34,7 @@
 					luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "APIKey", newKey, lul_device)
 					luup.variable_set("urn:toggledbits-com:serviceId:Rachio1", "PID", "", lul_device)
 				end
-				rachio.start(lul_device)
+				rachio.start(lul_device, true)
 				return true
 			</run>
 		</action>

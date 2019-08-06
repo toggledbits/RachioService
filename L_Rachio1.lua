@@ -1094,12 +1094,16 @@ local function run(pdev)
 end
 
 -- Initialize.
-function start(pdev)
+function start(pdev, restarting)
 	L("starting plugin version %2 device %1", pdev, _PLUGIN_VERSION)
 	pdev = tonumber(pdev or "" ,10)
 
-	A( serviceDevice==0, "Another instance of the service is running!" )
-	serviceDevice = pdev
+	if not restarting then
+		A( serviceDevice==0, "Another instance of the service is running!" )
+		serviceDevice = pdev
+	else
+		A( serviceDevice==pdev, "Invalid device number for restart" )
+	end
 
 	-- Check for ALTUI and OpenLuup
 	for k,v in pairs(luup.devices) do
