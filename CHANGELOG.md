@@ -1,5 +1,9 @@
 # Change Log #
 
+## Version 1.7 (development)
+
+* Make sure timeout is honored for HTTPS connection to API.
+
 ## Version 1.6 (released)
 
 * Fix reference error in assertion that could cause plugin crash when restarting between Luup reloads (e.g. when assigning new API key).
