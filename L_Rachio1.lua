@@ -22,7 +22,7 @@ module("L_Rachio1", package.seeall)
 
 local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.6"
+local _PLUGIN_VERSION = "1.7develop-20300"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
 local _CONFIGVERSION = 19145
 
@@ -483,6 +483,7 @@ local function getJSON(path, method, body)
 	-- Make the request.
 	local r = {}
 	http.TIMEOUT = timeout -- N.B. http not https, regardless
+	requestor.TIMEOUT = timeout
 	D("getJSON() #%1: %2 %3, headers=%4", ncall, method, url, tHeaders)
 	local _, httpStatus, httpHeaders = requestor.request{
 		url = url,

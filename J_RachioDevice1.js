@@ -15,6 +15,8 @@ var RachioDevice1 = (function (api) {
 	// unique identifier for this plugin...
 	var uuid = "ccdca3bc-6fca-11e7-b3ef-74d4351650de";
 
+	var pluginVersion = '1.7develop-20300';
+
 	var serviceId = "urn:toggledbits-com:serviceId:RachioDevice1";
 
 	var myModule = {};
