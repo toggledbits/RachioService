@@ -22,11 +22,12 @@ module("L_Rachio1", package.seeall)
 
 local _PLUGIN_ID = 8954
 local _PLUGIN_NAME = "Rachio"
-local _PLUGIN_VERSION = "1.7develop-20300"
+local _PLUGIN_VERSION = "1.7develop-21165.1600"
 local _PLUGIN_URL = "http://www.toggledbits.com/rachio"
-local _CONFIGVERSION = 19145
+local _CONFIGVERSION = 21165
 
 local debugMode = false
+local bypassVersionCheck = true
 
 local SYSSID = "urn:toggledbits-com:serviceId:Rachio1"
 local SYSTYPE = "urn:schemas-toggledbits-com:device:Rachio:1"
@@ -503,19 +504,20 @@ local function getJSON(path, method, body)
 	if debugMode then
 		local ff = io.open("/etc/cmh-ludl/RachioAPICalls.log", "a")
 		if ff then
-			ff:write(string.format("%d %d %d RESP %s %s\n",    os.time(), today, ncall, httpStatus, json.encode(httpHeaders or {})))
-			ff:write(string.format("%d %d %d RESPDATA %s\n", os.time(), today, ncall, respBody))
+			ff:write(string.format("%d %d %d REQ %s\n", os.time(), today, ncall, tostring(url)))
+			ff:write(string.format("%d %d %d RESP %s %s\n", os.time(), today, ncall, httpStatus, json.encode(httpHeaders or {})))
+			ff:write(string.format("%d %d %d RESPDATA %s\n", os.time(), today, ncall, tostring(respBody)))
 			ff:close()
 		end
 	end
 	--]]
 
 	-- See what happened.
-	-- ??? Now that we're using a sink, respBody is always 1, so maybe revisit the tests below at some point (harmless now)
 	D("getJSON() request returned httpStatus=%1, respBody=%2, headers=%3", httpStatus, respBody, httpHeaders)
 
 	-- If Rachio passes back quota info in headers (it should), update our stats.
 	if ( httpHeaders or {} )['x-ratelimit-limit'] then
+		D("getJSON() API reporting limit %1 remaining %2", httpHeaders['x-ratelimit-limit'], httpHeaders['x-ratelimit-remaining'])
 		apilimit = tonumber( httpHeaders['x-ratelimit-limit'] ) or apilimit
 		if httpHeaders['x-ratelimit-remaining'] then
 			local rem = tonumber(httpHeaders['x-ratelimit-remaining'])
@@ -750,7 +752,10 @@ local function doDeviceUpdate( data, serviceDev )
 		if ( v.deleted or 0 ) ~= 0 then
 			D("doDeviceUpdate() device %1 marked deleted, skipping", v.id)
 		elseif cdn ~= nil then
-			if v.status == nil or v.status:lower() ~= "online" then
+			if 0 == getVarNumeric( DEVICESID, "Enabled", 1, cdn ) then
+				setMessage( "DISABLED (configuration).", DEVICESID, cdn, 99 )
+				L({level=2,msg="%1 (#%2) disabled by configuration"}, ( luup.devices[ cdn ] or {} ).description, cdn )
+			elseif v.status == nil or v.status:lower() ~= "online" then
 				setMessage("*" .. tostring(v.status), DEVICESID, cdn, 99)
 			elseif v.on == 0 then
 				setMessage("Standby", DEVICESID, cdn, 10)
@@ -881,19 +886,25 @@ local function setUpDevices(data, serviceDev)
 	for _,v in pairs(data.devices) do
 		D("setUpDevices(): device %1 model %2, deleted=%3", v.id, v.model, v.deleted)
 		if ( v.deleted or 0 ) == 0 then
+			local vvs = {}
 			local cdn = findChildByUID( v.id )
 			if cdn == nil then
 				-- New device
 				changes = changes + 1
 				D("setUpDevices() adding child for device " .. tostring(v.id))
+				table.insert( vvs, SYSSID .. ",RachioID=" .. v.id )
+				table.insert( vvs, DEVICESID .. ",Enabled=1" )
+				table.insert( vvs, ",category_num=1" )
+				table.insert( vvs, ",subcategory_num=0" )
 			else
 				luup.attr_set( "name", v.name or v.id, cdn )
-				luup.attr_set( "category_num", 1, cdn )
-				luup.attr_set( "subcategory_num", 0, cdn )
+				if nil == luup.variable_get( DEVICESID, "Enabled", cdn ) then
+					luup.variable_set( DEVICESID, "Enabled", "1", cdn )
+				end
 			end
 
-			-- Always append child (embedded) device. Pass UID as id (string 3), and also initialize UID service variable.
-			luup.chdev.append( serviceDev, ptr, v.id, v.name, "", "D_RachioDevice1.xml", "", SYSSID .. ",RachioID=" .. v.id, true )
+			-- Always append child (embedded) device. Pass UID as id (string 3), and also initialize UID state (from above).
+			luup.chdev.append( serviceDev, ptr, v.id, v.name, "", "D_RachioDevice1.xml", "", table.concat( vvs, "\n" ), true )
 
 			-- Child exists or was created, remove from known list
 			knownDevices[v.id] = nil
@@ -956,7 +967,8 @@ end
 -- -----------------------------------------------------------------------------
 
 local function checkFirmware(dev)
-	if dev == nil then dev = serviceDevice end
+	if bypassVersionCheck then return true end
+	dev = dev or serviceDevice
 	D("checkFirmware(%1) version=%1, in parts %2.%3.%4", luup.version,
 		luup.version_branch, luup.version_major, luup.version_minor)
 
@@ -995,6 +1007,7 @@ local function runOnce(pdev)
 		L("runOnce() creating config")
 		luup.variable_set(SYSSID, "APIKey", "", pdev)
 		luup.variable_set(SYSSID, "Enabled", "1", pdev)
+		luup.variable_set(SYSSID, "DebugMode", "0", pdev)
 		luup.variable_set(SYSSID, "PID", "", pdev)
 		luup.variable_set(SYSSID, "ServiceCheck", HTTPREQ_AUTHFAIL, pdev)
 		luup.variable_set(SYSSID, "HideZones", "0", pdev)
@@ -1043,6 +1056,9 @@ local function runOnce(pdev)
 	if s < 00108 then
 		L("Upgrading configuration to 00108...")
 		luup.variable_set(SYSSID, "Enabled", "1", pdev)
+	end
+	if s < 21165 then
+		luup.variable_set(SYSSID, "DebugMode", "0", pdev)
 	end
 
 	-- Update version state var.
@@ -1234,7 +1250,7 @@ local function ptick(pdev, forced)
 		showServiceStatus("Online (updating)", pdev)
 		local problem = false
 		local lastUpdate = getVarNumeric( SYSSID, "LastUpdate", 0, pdev )
-		if forced or firstRun or ( os.time() >= ( lastUpdate + getVarNumeric( SYSSID, "DeviceInterval", 3600, pdev ) ) ) then
+		if forced or firstRun or ( os.time() >= ( lastUpdate + getVarNumeric( SYSSID, "DeviceInterval", 7200, pdev ) ) ) then
 			local status,data = getJSON("/public/person/" .. person)
 			luup.variable_set(SYSSID, "ServiceCheck", status, pdev)
 			if status ~= HTTPREQ_OK then
@@ -1272,14 +1288,21 @@ local function ptick(pdev, forced)
 			-- Check schedule on each controller
 			local devices = findChildrenByType(DEVICETYPE)
 			for _,d in pairs(devices) do
-				D("ptick() doing schedule check on %1 (%2)", d, luup.devices[d].description)
-				if not doSchedCheck( d, nil, pdev ) then
-					problem = true
-					break
+				if 0 == getVarNumeric( DEVICESID, "Enabled", 1, d ) then
+					D("ptick() skipping schedule check for %1 (%2); disabled", luup.devices[d].description, d)
+					setMessage( "DISABLED (configuration)", DEVICESID, d, 99 )
 				else
-					showServiceStatus( "Online", pdev )
+					D("ptick() doing schedule check on %1 (%2)", luup.devices[d].description, d)
+					if not doSchedCheck( d, nil, pdev ) then
+						problem = true
+						break
+					end
 				end
 			end
+		end
+
+		if not problem then
+			showServiceStatus( "Online", pdev )
 		end
 
 		-- Reset cycleMult if everything went smoothly.
@@ -1639,7 +1662,7 @@ function requestHandler(lul_request, lul_parameters, lul_outputformat)
 	-- local deviceNum = tonumber( lul_parameters.device ) or serviceDevice
 	if action == "debug" then
 		debugMode = not debugMode
-		return "Debug is now " .. debugMode and "on" or "off", "text/plain"
+		return "Debug is now " .. ( debugMode and "on" or "off" ), "text/plain"
 	end
 
 	if action:sub( 1, 3 ) == "ISS" then

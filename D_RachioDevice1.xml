@@ -7,7 +7,9 @@
 	<device>
 		<deviceType>urn:schemas-toggledbits-com:device:RachioDevice:1</deviceType>
 		<friendlyName>Rachio Device</friendlyName>
-		<handleChildren>1</handleChildren>
+		<handleChildren>0</handleChildren>
+		<Category_Num>1</Category_Num>
+		<Subcategory_Num>0</Subcategory_Num>
 		<staticJson>D_RachioDevice1.json</staticJson>
 		<serviceList>
 			<service>

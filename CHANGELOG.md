@@ -2,6 +2,7 @@
 
 ## Version 1.7 (development)
 
+* Add `Enabled` state var to each device (controller) to allow isolation for debugging purposes.
 * Make sure timeout is honored for HTTPS connection to API.
 
 ## Version 1.6 (released)
